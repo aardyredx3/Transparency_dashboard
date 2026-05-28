@@ -521,6 +521,12 @@ def generate_all_data(_tier_mix_sig: str = ""):
                 })
 
     portfolios_df  = pd.DataFrame(port_rows)
+    # Asset type — Public/Private × DICI/Fund-Investment matrix used by the Breakdown 'Cut by'.
+    # DICIs = Direct + Co-investment; Fund Investments = Fund + Mandate.
+    def _asset_type(row):
+        bucket = 'DICIs' if row['instrument_type'] in ('Direct', 'Co-investment') else 'Fund Investments'
+        return f"{row['product_type']} {bucket}"
+    portfolios_df['asset_type'] = portfolios_df.apply(_asset_type, axis=1)
     instruments_df = pd.DataFrame(instr_rows)
     audit_df       = pd.DataFrame(audit_rows)
 
@@ -937,7 +943,7 @@ def _section_band(title, subtitle=""):
            if subtitle else "")
     return (
         f'<div style="border-left:3px solid var(--section-band);padding-left:12px;margin:10px 0 16px;">'
-        f'<div style="font-size:16px;font-weight:500;color:var(--text-primary);letter-spacing:0.02em;">{title}</div>'
+        f'<div style="font-size:20px;font-weight:600;color:var(--text-primary);letter-spacing:0.02em;">{title}</div>'
         f'{sub}</div>'
     )
 
@@ -1028,26 +1034,13 @@ def page_portfolio_overview(strat_agg, sub_strat_agg, portfolios_df, history_df)
         breach_part = f"{n_breaches} of {len(df)} strateg{'y' if n_breaches==1 else 'ies'} breaching ({names_label})"
         breach_color = "var(--breach-text)"
 
-    st.markdown(
-        f'<p style="font-size:14px;margin-top:-4px;margin-bottom:18px;">'
-        f'<span style="color:{portfolio_color};">{portfolio_part}</span> · '
-        f'<span style="color:{breach_color};">{breach_part}</span></p>',
-        unsafe_allow_html=True
-    )
-
     st.markdown(_section_band("Total Portfolio", "Aggregate exposure vs limits. Limits are MV-weighted across the 16 strategies; click a card to drill into its breakdown below."), unsafe_allow_html=True)
-
-    # ── Section A: Total portfolio exposure cards (clickable drill-through) ──
-    # Tier definitions (apply across the whole dashboard)
     st.markdown(
-        '<div style="font-size:13px;color:var(--text-muted);margin-top:0;margin-bottom:14px;display:flex;flex-direction:column;gap:3px;">'
-        '<div><span style="color:var(--color-ok);">●</span> <span style="color:var(--text-soft);font-weight:500;">Green</span> = Good understanding of systematic and name level risk</div>'
-        '<div><span style="color:var(--amber-tier);">●</span> <span style="color:var(--text-soft);font-weight:500;">Amber</span> = Good understanding of systematic risk but no name level information</div>'
-        '<div><span style="color:var(--red-tier);">●</span> <span style="color:var(--text-soft);font-weight:500;">Red</span> = Poor systematic Risk</div>'
-        '</div>',
+        f'<p style="font-size:13.5px;color:{portfolio_color};margin:-6px 0 12px;">{portfolio_part}</p>',
         unsafe_allow_html=True,
     )
 
+    # ── Section A: Total portfolio exposure cards (clickable drill-through) ──
     card_specs = [
         ("Red exposure",   util_red_tot,   w_red*100,   thr_red_tot*100,   "#e74c3c", t_red_breach,   "Red"),
         ("Amber exposure", util_amber_tot, w_amber*100, thr_amber_tot*100, "#e67e22", t_amber_breach, "Amber"),
@@ -1066,13 +1059,17 @@ def page_portfolio_overview(strat_agg, sub_strat_agg, portfolios_df, history_df)
     cards_html += '</div>'
     st.markdown(cards_html, unsafe_allow_html=True)
 
-    st.markdown(_section_band("Strategy status panel", "One widget per Strategy (16 total). Each shows utilisation against that Strategy's own Red, Amber, and Cumulative thresholds. Strategies are grouped by Public vs Private."), unsafe_allow_html=True)
+    st.markdown(_section_band("Strategy status panel", "Each shows utilisation against that Strategy's own Red, Amber, and Cumulative thresholds."), unsafe_allow_html=True)
+    st.markdown(
+        f'<p style="font-size:13.5px;color:{breach_color};margin:-6px 0 12px;">{breach_part}</p>',
+        unsafe_allow_html=True,
+    )
 
     # ── Section B: Strategy status panel (cockpit grid) ──────────────────────
-    _, btn_col = st.columns([6, 1])
+    _, btn_col = st.columns([8, 1.1])
     with btn_col:
         btn_label = "Collapse all" if st.session_state["widgets_expanded"] else "Expand all"
-        if st.button(btn_label, key="toggle_widgets", use_container_width=False):
+        if st.button(btn_label, key="toggle_widgets", use_container_width=True):
             new_state = not st.session_state["widgets_expanded"]
             st.session_state["widgets_expanded"] = new_state
             st.query_params["exp"] = "1" if new_state else "0"
@@ -1106,7 +1103,7 @@ def page_portfolio_overview(strat_agg, sub_strat_agg, portfolios_df, history_df)
         grid += '</div>'
         return head + grid
 
-    cockpit_html = _product_section("Public", "Public") + _product_section("Private", "Private")
+    cockpit_html = _product_section("Public Strategies", "Public") + _product_section("Private Strategies", "Private")
     # Negative top margin tightens the gap between the toggle button and the widgets.
     st.markdown('<div style="margin-top:-14px;">' + cockpit_html + '</div>', unsafe_allow_html=True)
 
@@ -1172,7 +1169,7 @@ def page_portfolio_overview(strat_agg, sub_strat_agg, portfolios_df, history_df)
             margin=dict(l=20,r=20,t=10,b=20),
             legend=dict(orientation="h", yanchor="bottom", y=1.02, **DARK_LEGEND),
         )
-        fig_trend.update_xaxes(tickformat="%b %Y")
+        fig_trend.update_xaxes(tickformat="%b %Y", dtick="M1", tickangle=-30)
         st.plotly_chart(fig_trend, use_container_width=True)
 
     # ── Section D: Breakdown panel (drill-through from Top cards) ────────────
@@ -1196,12 +1193,12 @@ def page_portfolio_overview(strat_agg, sub_strat_agg, portfolios_df, history_df)
                                 key="bd_focus")
         with bc2:
             cut_label = st.selectbox("Cut by",
-                                     ["Strategy", "Product (Public / Private)", "Instrument Type"],
+                                     ["Strategy", "Asset type", "Instrument Type"],
                                      key="bd_cut")
 
         cut_map = {
             "Strategy":                   "sub_strategy_name",    # internal: sub_strategy_name = Strategy
-            "Product (Public / Private)": "product_type",
+            "Asset type":                 "asset_type",
             "Instrument Type":             "instrument_type",
         }
         cut_col = cut_map[cut_label]
@@ -1352,15 +1349,6 @@ def page_strategy_detail(strat_agg, sub_strat_agg, portfolios_df, instruments_df
         f"{sel} — exposure vs limits per Strategy",
         "Each Strategy is shown against its own Red, Amber, and Cumulative limits. Click any card to focus the breakdown and trend below."),
         unsafe_allow_html=True)
-    st.markdown(
-        '<div style="font-size:13px;color:var(--text-muted);margin-top:0;margin-bottom:6px;display:flex;flex-direction:column;gap:3px;">'
-        '<div><span style="color:var(--color-ok);">&#9679;</span> <span style="color:var(--text-soft);font-weight:500;">Green</span> = Good understanding of systematic and name level risk</div>'
-        '<div><span style="color:var(--amber-tier);">&#9679;</span> <span style="color:var(--text-soft);font-weight:500;">Amber</span> = Good understanding of systematic risk but no name level information</div>'
-        '<div><span style="color:var(--red-tier);">&#9679;</span> <span style="color:var(--text-soft);font-weight:500;">Red</span> = Poor systematic Risk</div>'
-        '</div>',
-        unsafe_allow_html=True,
-    )
-
     for _, sr in children.iterrows():
         s_name = sr["sub_strategy_name"]
         s_max = max(float(sr["red_utilisation"]), float(sr["amber_utilisation"]), float(sr["cum_utilisation"])) * 100
@@ -1453,7 +1441,7 @@ def page_strategy_detail(strat_agg, sub_strat_agg, portfolios_df, instruments_df
         fig_st.update_layout(**DARK_LAYOUT, barmode="stack", yaxis_title="% non-transparent", height=320,
                              margin=dict(l=20, r=20, t=10, b=20),
                              legend=dict(orientation="h", yanchor="bottom", y=1.02, **DARK_LEGEND))
-        fig_st.update_xaxes(tickformat="%b %Y")
+        fig_st.update_xaxes(tickformat="%b %Y", dtick="M1", tickangle=-30)
         st.plotly_chart(fig_st, use_container_width=True)
 
     # Breakdown — group-scoped, 4 cuts, in an expander with an info tooltip
@@ -1475,13 +1463,13 @@ def page_strategy_detail(strat_agg, sub_strat_agg, portfolios_df, instruments_df
         with bc2:
             cut_label = st.selectbox(
                 "Cut by",
-                ["Strategy", "Portfolio", "Product (Public / Private)", "Instrument Type"],
+                ["Strategy", "Portfolio", "Asset type", "Instrument Type"],
                 key="sd_cut",
             )
         cut_map = {
             "Strategy":                   "sub_strategy_name",
             "Portfolio":                  "portfolio_name",
-            "Product (Public / Private)": "product_type",
+            "Asset type":                 "asset_type",
             "Instrument Type":            "instrument_type",
         }
         cut_col = cut_map[cut_label]
@@ -1839,7 +1827,7 @@ def page_data_quality(portfolios_df, instruments_df, audit_df):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def page_whatif(strat_agg):
-    st.title("🔮 Scenario Simulation / What-If Tool")
+    st.title("🔮 What-If Simulator (WIP)")
     st.caption("Adjust thresholds and tier reclassification to see the impact on breach status and cumulative utilisation.")
 
     sel = st.selectbox("Select Strategy Group", strat_agg["name"].tolist(), key="wi_sel")
@@ -1993,7 +1981,7 @@ def main():
 
 
     PAGES = ["Total Portfolio", "Strategy Detail", "Instrument Detail",
-             "Data Quality", "What-If Simulator"]
+             "Data Quality", "What-If Simulator (WIP)"]
 
     if "active_page" not in st.session_state:
         st.session_state["active_page"] = "Total Portfolio"
@@ -2035,7 +2023,7 @@ def main():
     elif active == "Strategy Detail":   page_strategy_detail(strat_agg, sub_strat_agg, portfolios_df, instruments_df, history_df, sub_history_df)
     elif active == "Instrument Detail": page_instrument_detail(instruments_df)
     elif active == "Data Quality":      page_data_quality(portfolios_df, instruments_df, audit_df)
-    elif active == "What-If Simulator": page_whatif(strat_agg)
+    elif active == "What-If Simulator (WIP)": page_whatif(strat_agg)
 
 if __name__ == "__main__":
     main()
