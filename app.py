@@ -236,6 +236,21 @@ div[role=\"radiogroup\"] > label:has(input:checked) p {{ color: var(--text-prima
 a.investigate-btn:hover {{ background: {investigate_hover_bg} !important; color: {investigate_hover_text} !important; }}
 .st-key-toggle_widgets {{ display:flex !important; justify-content:flex-end !important; margin-bottom:-6px !important; }}
 .st-key-toggle_widgets button {{ padding:3px 12px !important; min-height:0 !important; height:30px !important; font-size:12px !important; line-height:1 !important; }}
+/* === Cream-theme coverage for Streamlit-native widgets === */
+[data-testid=\"stButton\"] button, [data-testid=\"stDownloadButton\"] button, [data-testid=\"stFormSubmitButton\"] button {{ background-color: var(--bg-surface) !important; color: var(--text-primary) !important; border: 1px solid var(--border-strong) !important; }}
+[data-testid=\"stButton\"] button:hover, [data-testid=\"stDownloadButton\"] button:hover, [data-testid=\"stFormSubmitButton\"] button:hover {{ background-color: {hover_card} !important; border-color: var(--accent) !important; color: var(--text-primary) !important; }}
+[data-baseweb=\"menu\"], [data-baseweb=\"menu\"] ul, [data-baseweb=\"popover\"] {{ background-color: var(--bg-surface) !important; }}
+[data-baseweb=\"menu\"] li, [data-baseweb=\"menu\"] [role=\"option\"] {{ color: var(--text-primary) !important; background-color: var(--bg-surface) !important; }}
+[data-baseweb=\"menu\"] li:hover, [data-baseweb=\"menu\"] [role=\"option\"]:hover, [data-baseweb=\"menu\"] li[aria-selected=\"true\"], [data-baseweb=\"menu\"] [role=\"option\"][aria-selected=\"true\"] {{ background-color: {hover_card} !important; color: var(--text-primary) !important; }}
+[data-baseweb=\"tag\"] {{ background-color: var(--bg-track) !important; color: var(--text-primary) !important; border-color: var(--border-strong) !important; }}
+[data-baseweb=\"tag\"] span {{ color: var(--text-primary) !important; }}
+[data-baseweb=\"input\"], [data-baseweb=\"input\"] input, [data-baseweb=\"textarea\"] textarea {{ background-color: var(--bg-surface) !important; color: var(--text-primary) !important; }}
+[data-testid=\"stExpander\"] details > summary, [data-testid=\"stExpander\"] details > summary p, [data-testid=\"stExpander\"] details > summary span {{ color: var(--text-primary) !important; }}
+[data-testid=\"stExpander\"] details > summary svg {{ fill: var(--text-soft) !important; color: var(--text-soft) !important; }}
+[data-testid=\"stCaptionContainer\"] p, [data-testid=\"stCaptionContainer\"], .stCaption {{ color: var(--text-muted) !important; }}
+[data-testid=\"stWidgetLabel\"], [data-testid=\"stToggle\"] label, [data-testid=\"stCheckbox\"] label, label[data-baseweb=\"form-control-label\"] {{ color: var(--text-primary) !important; }}
+[data-testid=\"stMarkdownContainer\"] p {{ color: var(--text-primary); }}
+.stTabs [data-baseweb=\"tab-list\"] {{ background-color: transparent !important; }}
 </style>
 """
     st.markdown(css, unsafe_allow_html=True)
@@ -255,7 +270,7 @@ def apply_tier_style(styler, col):
 # ─── Strategy Taxonomy ───────────────────────────────────────────────────────
 # Two-level taxonomy:
 #   - Strategy Group (top-level container, has owner)
-#   - Strategy       (where the Red / Amber / Cumulative thresholds live)
+#   - Strategy       (where the Red / Amber (= Red+Amber combined) thresholds live)
 #
 # Internal field names retain the v1 spelling for backwards compatibility:
 #   - strategy_id / strategy_name      -> Strategy Group
@@ -524,7 +539,7 @@ def generate_all_data(_tier_mix_sig: str = ""):
     # Asset type — Public/Private × DICI/Fund-Investment matrix used by the Breakdown 'Cut by'.
     # DICIs = Direct + Co-investment; Fund Investments = Fund + Mandate.
     def _asset_type(row):
-        bucket = 'DICIs' if row['instrument_type'] in ('Direct', 'Co-investment') else 'Fund Investments'
+        bucket = 'DICIs' if row['instrument_type'] in ('Direct Investment', 'Co-investment') else 'Fund Investments'
         return f"{row['product_type']} {bucket}"
     portfolios_df['asset_type'] = portfolios_df.apply(_asset_type, axis=1)
     instruments_df = pd.DataFrame(instr_rows)
@@ -573,7 +588,7 @@ def generate_all_data(_tier_mix_sig: str = ""):
     sub_strat_agg["red_breach"]   = sub_strat_agg["Red_pct"]   > sub_strat_agg["threshold_red"]
     sub_strat_agg["amber_breach"] = sub_strat_agg["Amber_pct"] > sub_strat_agg["threshold_amber"]
     sub_strat_agg["cum_breach"]   = sub_strat_agg["cum_pct"]   > sub_strat_agg["threshold_cum"]
-    sub_strat_agg["any_breach"]   = sub_strat_agg["red_breach"] | sub_strat_agg["amber_breach"] | sub_strat_agg["cum_breach"]
+    sub_strat_agg["any_breach"]   = sub_strat_agg["red_breach"] | sub_strat_agg["cum_breach"]   # Amber-tier-only breach intentionally NOT counted
     sub_strat_agg["name"]         = sub_strat_agg["sub_strategy_name"]
 
     # Roll children up into the Strategy-Group aggregates (strat_agg). MV-weighted
@@ -669,6 +684,28 @@ def generate_all_data(_tier_mix_sig: str = ""):
             })
     sub_history_df = pd.DataFrame(sub_hist_rows)
 
+    # ── investment_bucket: 5-cut DQ dimension ──────────────────────────────────
+    # Mandate folded into DI; Large/Small split only for PRIVATE investments
+    # using a USD 200M MV threshold (synthetic data is in £M; same numeric scale).
+    # Public DI / Public CI (if any) get no size split.
+    INVESTMENT_LARGE_MV = 200.0   # £M threshold
+    def _invbucket(itype, ptype, mv):
+        if itype == "Fund Investment":
+            return "FI"
+        if itype in ("Direct Investment", "Mandate"):
+            prefix = "DI"
+        elif itype == "Co-investment":
+            prefix = "CI"
+        else:
+            return "Other"
+        if ptype == "Private":
+            return f"{prefix} Large" if (mv or 0) > INVESTMENT_LARGE_MV else f"{prefix} Small"
+        return prefix
+    portfolios_df["investment_bucket"]  = portfolios_df.apply(
+        lambda r: _invbucket(r["instrument_type"], r["product_type"], r["mv"]), axis=1)
+    instruments_df["investment_bucket"] = instruments_df.apply(
+        lambda r: _invbucket(r["instrument_type"], r["product_type"], r["mv"]), axis=1)
+
     return (strategies_df, sub_strategies_df, portfolios_df, instruments_df,
             strat_agg, sub_strat_agg, history_df, sub_history_df, audit_df)
 
@@ -714,7 +751,7 @@ def _cockpit_widget_html(row, expanded=True, show_investigate=True):
     red_util = row["red_utilisation"]   * 100
     amb_util = row["amber_utilisation"] * 100
     cum_util = row["cum_utilisation"]   * 100
-    max_util = max(red_util, amb_util, cum_util)
+    max_util = max(red_util, cum_util)
 
     # Three-state traffic light: OK (<90%), Alert (>=90%, not breaching), Breach (>100%)
     if any_breach:
@@ -742,27 +779,33 @@ def _cockpit_widget_html(row, expanded=True, show_investigate=True):
         )
 
     investigate = ""
-    if any_breach and show_investigate:
-        # Send the PARENT Strategy Group to ?goto=strategy. sub_strat_agg rows have
-        # strategy_name = Group name; strat_agg rows fall back to their own name.
+    if show_investigate:
+        # Every widget is drill-through-able to Strategy Detail. Breaching widgets get a
+        # red-tinted "Investigate breach" CTA; non-breaching widgets get a neutral
+        # "View details" link in the accent colour. Both land on Strategy Detail with the
+        # parent Strategy Group preselected.
         try:
-            target_group = str(row["strategy_name"])  # parent Strategy Group
+            target_group = str(row["strategy_name"])
         except (KeyError, IndexError):
             target_group = str(row["name"])
-        # Pick the breaching tier with the largest variance over its limit so the
-        # Strategy Detail page can auto-focus the most painful card.
-        _breach_priorities = []
-        if bool(row.get("red_breach",   False)): _breach_priorities.append(("Red",        float(row.get("red_variance",   0))))
-        if bool(row.get("amber_breach", False)): _breach_priorities.append(("Amber",      float(row.get("amber_variance", 0))))
-        if bool(row.get("cum_breach",   False)): _breach_priorities.append(("Cumulative", float(row.get("cum_variance",   0))))
-        _breach_priorities.sort(key=lambda t: -t[1])
-        worst_tier = _breach_priorities[0][0] if _breach_priorities else "Red"
+        if any_breach:
+            _bp = []
+            if bool(row.get("red_breach", False)): _bp.append(("Red",   float(row.get("red_variance", 0))))
+            if bool(row.get("cum_breach", False)): _bp.append(("Amber", float(row.get("cum_variance", 0))))
+            _bp.sort(key=lambda t: -t[1])
+            focus_tier = _bp[0][0] if _bp else "Amber"
+            link_text  = "Investigate breach \u2192"
+            link_style = "background:var(--investigate-bg);color:var(--investigate-text);"
+        else:
+            focus_tier = "Amber"
+            link_text  = "View details \u2192"
+            link_style = "background:var(--bg-track);color:var(--accent);border:1px solid var(--border-strong);"
         investigate = (
-            f'<a href="?goto=strategy&name={quote(target_group)}&sdfocus={worst_tier}&sdstrat={quote(target_group)}" '
+            f'<a href="?goto=strategy&name={quote(target_group)}&sdfocus={focus_tier}&sdstrat={quote(target_group)}" '
             f'target="_self" class="investigate-btn" '
             f'style="display:block;text-align:center;margin-top:12px;padding:9px;border-radius:6px;'
-            f'background:var(--investigate-bg);color:var(--investigate-text);font-size:14px;font-weight:500;text-decoration:none;">'
-            f'Investigate breach \u2192</a>'
+            f'{link_style}font-size:13px;font-weight:500;text-decoration:none;">'
+            f'{link_text}</a>'
         )
 
     open_attr = "open" if expanded else ""
@@ -777,8 +820,7 @@ def _cockpit_widget_html(row, expanded=True, show_investigate=True):
         f'</div></summary>'
         f'<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border-default);">'
         f'{_row("Red util %",   red_util)}'
-        f'{_row("Amber util %", amb_util)}'
-        f'{_row("Cumulative util %", cum_util)}'
+        f'{_row("Amber util %", cum_util)}'
         f'{investigate}'
         f'</div>'
         f'</details>'
@@ -844,15 +886,15 @@ def _total_exposure_card_html(label, util_pct, value_pct, limit_pct, color, brea
 
 TIER_PALETTES = {
     "Red":        ["var(--color-red-fill)", "#C0392B", "#D85A30", "#E24B4A"],
-    "Amber":      ["#BA7517", "#D17616", "#EF9F27", "#FAC775"],
-    "Cumulative": ["var(--color-red-fill)", "#C0392B", "#BA7517", "#D17616"],
+    "Amber":      ["var(--color-red-fill)", "#C0392B", "#BA7517", "#D17616"],   # Amber = Red+Amber combined (the limit)
+    "Amber only": ["#BA7517", "#D17616", "#EF9F27", "#FAC775"],                  # Pure Amber-tier view
 }
 OTHERS_COLOR = "#5f6a82"
 
 TIER_TOOLTIPS = {
     "Red":        "Red = Poor systematic risk \u2014 the least transparent tier.",
-    "Amber":      "Amber = Good understanding of systematic risk but no name-level information.",
-    "Cumulative": "Cumulative = Amber + Red combined (total non-transparent exposure).",
+    "Amber":      "Amber = Total intransparency exposure (Red + Amber tiers combined; against the Amber limit).",
+    "Amber only": "Amber only = Pure Amber tier (good understanding of systematic risk but no name-level information).",
 }
 
 
@@ -949,7 +991,12 @@ def _section_band(title, subtitle=""):
 
 
 def page_portfolio_overview(strat_agg, sub_strat_agg, portfolios_df, history_df):
-    st.title("Intransparency monitoring dashboard")
+    st.title("Intransparency Monitoring Dashboard")
+    st.markdown(
+        '<p style="font-size:14px;color:var(--text-soft);font-style:italic;margin-top:-12px;margin-bottom:14px;">'
+        'Direct Investments, Co-investments and Fund Investments</p>',
+        unsafe_allow_html=True,
+    )
 
     # Drill-through from clickable cards: read URL query param, promote to
     # session_state, then clear the URL so future reruns don't keep forcing it.
@@ -957,7 +1004,7 @@ def page_portfolio_overview(strat_agg, sub_strat_agg, portfolios_df, history_df)
         qp_focus = st.query_params.get("focus")
     except Exception:
         qp_focus = None
-    if qp_focus in ("Red", "Amber", "Cumulative"):
+    if qp_focus in ("Red", "Amber"):
         st.session_state["focus_tier"]       = qp_focus
         st.session_state["breakdown_expand"] = True
         st.session_state["trend_expand"]     = True
@@ -1020,9 +1067,9 @@ def page_portfolio_overview(strat_agg, sub_strat_agg, portfolios_df, history_df)
 
     # ── Subtitle ─────────────────────────────────────────────────────────────
     portfolio_part = (
-        "Cumulative Intransparency exposure remained within their respective limits."
+        "Amber intransparency exposure remained within its limit."
         if not t_any_breach else
-        "Cumulative Intransparency exposure breached one or more limits."
+        "Amber intransparency exposure breached its limit at total-portfolio level."
     )
     portfolio_color = "var(--text-soft)" if not t_any_breach else "var(--breach-text)"
 
@@ -1034,7 +1081,7 @@ def page_portfolio_overview(strat_agg, sub_strat_agg, portfolios_df, history_df)
         breach_part = f"{n_breaches} of {len(df)} strateg{'y' if n_breaches==1 else 'ies'} breaching ({names_label})"
         breach_color = "var(--breach-text)"
 
-    st.markdown(_section_band("Total Portfolio", "Aggregate exposure vs limits. Limits are MV-weighted across the 16 strategies; click a card to drill into its breakdown below."), unsafe_allow_html=True)
+    st.markdown(_section_band("Total Portfolio – Intransparency Limits Utilisation", "Aggregate intransparency exposure vs limits (Red and Amber = Red+Amber combined). Click to drill down to strategy breakdown."), unsafe_allow_html=True)
     st.markdown(
         f'<p style="font-size:13.5px;color:{portfolio_color};margin:-6px 0 12px;">{portfolio_part}</p>',
         unsafe_allow_html=True,
@@ -1042,14 +1089,13 @@ def page_portfolio_overview(strat_agg, sub_strat_agg, portfolios_df, history_df)
 
     # ── Section A: Total portfolio exposure cards (clickable drill-through) ──
     card_specs = [
-        ("Red exposure",   util_red_tot,   w_red*100,   thr_red_tot*100,   "#e74c3c", t_red_breach,   "Red"),
-        ("Amber exposure", util_amber_tot, w_amber*100, thr_amber_tot*100, "#e67e22", t_amber_breach, "Amber"),
-        ("Cumulative",     util_cum_tot,   w_cum*100,   thr_cum_tot*100,   "#888780", t_cum_breach,   "Cumulative"),
+        ("Red exposure",   util_red_tot, w_red*100, thr_red_tot*100, "#e74c3c", t_red_breach, "Red"),
+        ("Amber exposure", util_cum_tot, w_cum*100, thr_cum_tot*100, "#e67e22", t_cum_breach, "Amber"),
     ]
     # Carry the current panel state in the card link so the full-page reload it
     # triggers doesn't reset the Strategy status panel back to expanded.
     exp_q = "1" if st.session_state["widgets_expanded"] else "0"
-    cards_html = '<div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:12px;margin-bottom:20px;">'
+    cards_html = '<div style="display:grid;grid-template-columns:repeat(2, 1fr);gap:12px;margin-bottom:20px;">'
     for (lbl, util, val, thr, color, breach, tier_key) in card_specs:
         cards_html += _total_exposure_card_html(
             lbl, util, val, thr, color, breach,
@@ -1059,7 +1105,7 @@ def page_portfolio_overview(strat_agg, sub_strat_agg, portfolios_df, history_df)
     cards_html += '</div>'
     st.markdown(cards_html, unsafe_allow_html=True)
 
-    st.markdown(_section_band("Strategy status panel", "Each shows utilisation against that Strategy's own Red, Amber, and Cumulative thresholds."), unsafe_allow_html=True)
+    st.markdown(_section_band("Active Strategies – Intransparency Limits Utilisation", "Per-Strategy utilisation against its own Red and Amber limits."), unsafe_allow_html=True)
     st.markdown(
         f'<p style="font-size:13.5px;color:{breach_color};margin:-6px 0 12px;">{breach_part}</p>',
         unsafe_allow_html=True,
@@ -1112,23 +1158,23 @@ def page_portfolio_overview(strat_agg, sub_strat_agg, portfolios_df, history_df)
 
     # ── Section C: Trend (expander, collapsed by default) ───────────────────
     # Trend follows the same tier the exposure cards set (focus_tier), so a card
-    # click focuses the Trend just like the Breakdown. Cumulative / no-click = full chart.
-    trend_tier   = st.session_state.get("focus_tier", "Cumulative")
+    # click focuses the Trend just like the Breakdown. Amber / no-click = full chart.
+    trend_tier   = st.session_state.get("focus_tier", "Amber")
     trend_expand = st.session_state.pop("trend_expand", False)
     _trend_titles = {
-        "Red":        "Red (no transparency) exposure trend",
-        "Amber":      "Amber (partial transparency) exposure trend",
-        "Cumulative": "Non-transparent exposure trend (Amber + Red)",
+        "Red":        "Red intransparency trend",
+        "Amber":      "Intransparency trend (Amber + Red)",
+        "Amber only": "Amber-only trend (Amber tier alone)",
     }
     with st.expander("📈 Total Portfolio Trend", expanded=trend_expand):
         st.markdown(
-            f'<p class="section-title" style="margin-top:0.5rem;">{_trend_titles.get(trend_tier, _trend_titles["Cumulative"])}</p>',
+            f'<p class="section-title" style="margin-top:0.5rem;">{_trend_titles.get(trend_tier, _trend_titles["Amber"])}</p>',
             unsafe_allow_html=True
         )
         if trend_tier in ("Red", "Amber"):
             st.caption(f"AUM-weighted total portfolio — {trend_tier} shown by default. Use the chart legend to toggle the other series on or off.")
         else:
-            st.caption("AUM-weighted total portfolio. Stacked bars show the Amber/Red composition each month; the line traces the overall trajectory. Click a Red or Amber card above to focus on a single tier.")
+            st.caption("AUM-weighted total portfolio. Stacked bars show the Amber/Red composition each month; the line traces total intransparency. Click a Red or Amber card above to focus on a single tier.")
 
         hagg_stack = (
             hf.groupby("date")
@@ -1142,9 +1188,9 @@ def page_portfolio_overview(strat_agg, sub_strat_agg, portfolios_df, history_df)
         # Always add all three series (same order as the full view) so the legend
         # and its click-to-toggle interactivity are identical across tiers. Non-focused
         # series start hidden via visible="legendonly" — present in the legend, one click away.
-        amber_vis = True if trend_tier in ("Amber", "Cumulative") else "legendonly"
-        red_vis   = True if trend_tier in ("Red",   "Cumulative") else "legendonly"
-        total_vis = True if trend_tier == "Cumulative" else "legendonly"
+        amber_vis = True if trend_tier in ("Amber", "Amber only") else "legendonly"
+        red_vis   = True if trend_tier in ("Red",   "Amber") else "legendonly"
+        total_vis = True if trend_tier == "Amber" else "legendonly"
         fig_trend = go.Figure()
         fig_trend.add_trace(go.Bar(
             x=hagg_stack["date"], y=hagg_stack["amber_pct"],
@@ -1158,14 +1204,14 @@ def page_portfolio_overview(strat_agg, sub_strat_agg, portfolios_df, history_df)
         ))
         fig_trend.add_trace(go.Scatter(
             x=hagg["date"], y=hagg["non_transparent_pct"],
-            mode="lines+markers", name="Total non-transparent", visible=total_vis,
+            mode="lines+markers", name="Total intransparency", visible=total_vis,
             line=dict(color="#c0392b", width=2.5),
             marker=dict(size=8, color="#c0392b", line=dict(color="#0e1117", width=1.5)),
             hovertemplate="<b>%{x|%b %Y}</b><br>Total: %{y:.1f}%<extra></extra>",
         ))
         fig_trend.update_layout(
             **DARK_LAYOUT, barmode="stack",
-            yaxis_title="% non-transparent", height=320,
+            yaxis_title="% intransparency", height=320,
             margin=dict(l=20,r=20,t=10,b=20),
             legend=dict(orientation="h", yanchor="bottom", y=1.02, **DARK_LEGEND),
         )
@@ -1186,7 +1232,7 @@ def page_portfolio_overview(strat_agg, sub_strat_agg, portfolios_df, history_df)
         )
         bc1, bc2 = st.columns(2)
         with bc1:
-            tier_options = ["Red", "Amber", "Cumulative"]
+            tier_options = ["Red", "Amber", "Amber only"]
             tier = st.selectbox("Focus on",
                                 tier_options,
                                 index=tier_options.index(focus_default) if focus_default in tier_options else 0,
@@ -1203,7 +1249,7 @@ def page_portfolio_overview(strat_agg, sub_strat_agg, portfolios_df, history_df)
         }
         cut_col = cut_map[cut_label]
 
-        tier_filter = pf["tier"].isin(["Amber", "Red"]) if tier == "Cumulative" else (pf["tier"] == tier)
+        tier_filter = pf["tier"].isin(["Amber", "Red"]) if tier == "Amber" else (pf["tier"] == "Amber" if tier == "Amber only" else pf["tier"] == "Red")
         tier_pf = pf[tier_filter]
         total_tier_mv  = float(tier_pf["mv"].sum())
         total_tier_pct = (total_tier_mv / total_mv * 100) if total_mv > 0 else 0
@@ -1311,7 +1357,7 @@ def page_strategy_detail(strat_agg, sub_strat_agg, portfolios_df, instruments_df
     #    clear the consumed params. (main() already used sdstrat to keep us here.)
     qpf = st.query_params.get("sdfocus")
     qps = st.query_params.get("sdsub")
-    if qpf in ("Red", "Amber", "Cumulative"):
+    if qpf in ("Red", "Amber"):
         st.session_state["sd_focus_tier"]       = qpf
         st.session_state["sd_breakdown_expand"] = True
         st.session_state["sd_trend_expand"]     = True
@@ -1322,7 +1368,7 @@ def page_strategy_detail(strat_agg, sub_strat_agg, portfolios_df, instruments_df
             del st.query_params[_k]
         except Exception:
             pass
-    st.session_state.setdefault("sd_focus_tier", "Cumulative")
+    st.session_state.setdefault("sd_focus_tier", "Amber")
     sd_focus = st.session_state["sd_focus_tier"]
 
     # ── Title + status subtitle ─────────────────────────────────────────────
@@ -1344,10 +1390,10 @@ def page_strategy_detail(strat_agg, sub_strat_agg, portfolios_df, instruments_df
 
     # ── Section A: per-Strategy exposure cards (clickable drill-through) ──────
     # No Strategy-Group aggregate: limits live at the Strategy level, so each
-    # Strategy is shown against its OWN Red / Amber / Cumulative limits.
+    # Strategy is shown against its OWN Red / Amber (= Red+Amber combined) limits.
     st.markdown(_section_band(
-        f"{sel} — exposure vs limits per Strategy",
-        "Each Strategy is shown against its own Red, Amber, and Cumulative limits. Click any card to focus the breakdown and trend below."),
+        f"{sel} – Intransparency Limits Utilisation per Strategy",
+        "Each Strategy is shown against its own Red and Amber limits. Click any card to focus the breakdown and trend below."),
         unsafe_allow_html=True)
     for _, sr in children.iterrows():
         s_name = sr["sub_strategy_name"]
@@ -1369,11 +1415,10 @@ def page_strategy_detail(strat_agg, sub_strat_agg, portfolios_df, instruments_df
             unsafe_allow_html=True,
         )
         card_specs = [
-            ("Red exposure",   float(sr["red_utilisation"])*100,   float(sr["Red_pct"])*100,   float(sr["threshold_red"])*100,   "#e74c3c", bool(sr["red_breach"]),   "Red"),
-            ("Amber exposure", float(sr["amber_utilisation"])*100, float(sr["Amber_pct"])*100, float(sr["threshold_amber"])*100, "#e67e22", bool(sr["amber_breach"]), "Amber"),
-            ("Cumulative",     float(sr["cum_utilisation"])*100,   float(sr["cum_pct"])*100,   float(sr["threshold_cum"])*100,   "#888780", bool(sr["cum_breach"]),   "Cumulative"),
+            ("Red exposure",   float(sr["red_utilisation"])*100, float(sr["Red_pct"])*100, float(sr["threshold_red"])*100, "#e74c3c", bool(sr["red_breach"]), "Red"),
+            ("Amber exposure", float(sr["cum_utilisation"])*100, float(sr["cum_pct"])*100, float(sr["threshold_cum"])*100, "#e67e22", bool(sr["cum_breach"]), "Amber"),
         ]
-        block = '<div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:12px;margin-bottom:6px;">'
+        block = '<div style="display:grid;grid-template-columns:repeat(2, 1fr);gap:12px;margin-bottom:6px;">'
         for (lbl, util, val, thr, color, breach, tier_key) in card_specs:
             block += _total_exposure_card_html(
                 lbl, util, val, thr, color, breach,
@@ -1411,21 +1456,21 @@ def page_strategy_detail(strat_agg, sub_strat_agg, portfolios_df, instruments_df
     # Trend — follows the clicked tier, full interactive legend
     sd_trend_expand = st.session_state.pop("sd_trend_expand", False)
     _trend_titles = {
-        "Red":        "Red (no transparency) exposure trend",
-        "Amber":      "Amber (partial transparency) exposure trend",
-        "Cumulative": "Non-transparent exposure trend (Amber + Red)",
+        "Red":        "Red intransparency trend",
+        "Amber":      "Intransparency trend (Amber + Red)",
+        "Amber only": "Amber-only trend (Amber tier alone)",
     }
     with st.expander("\U0001f4c8 Strategy Trend", expanded=sd_trend_expand):
         st.markdown(
-            f'<p class="section-title" style="margin-top:0.5rem;">{_trend_titles.get(sd_focus, _trend_titles["Cumulative"])}</p>',
+            f'<p class="section-title" style="margin-top:0.5rem;">{_trend_titles.get(sd_focus, _trend_titles["Amber"])}</p>',
             unsafe_allow_html=True)
         if sd_focus in ("Red", "Amber"):
             st.caption(f"{scope_name} — monthly {sd_focus} trend shown by default. Use the chart legend to toggle the other series on or off.")
         else:
-            st.caption(f"{scope_name} — monthly trend. Stacked bars show the Amber / Red composition; the line traces total non-transparent %. Click a Red or Amber card above to focus a single tier.")
-        amber_vis = True if sd_focus in ("Amber", "Cumulative") else "legendonly"
-        red_vis   = True if sd_focus in ("Red",   "Cumulative") else "legendonly"
-        total_vis = True if sd_focus == "Cumulative" else "legendonly"
+            st.caption(f"{scope_name} — monthly trend. Stacked bars show the Amber / Red composition; the line traces total intransparency %. Click a Red or Amber card above to focus a single tier.")
+        amber_vis = True if sd_focus in ("Amber", "Amber only") else "legendonly"
+        red_vis   = True if sd_focus in ("Red",   "Amber") else "legendonly"
+        total_vis = True if sd_focus == "Amber" else "legendonly"
         fig_st = go.Figure()
         fig_st.add_trace(go.Bar(x=sh["date"], y=sh["amber_pct"]*100, name="Amber",
                                 marker_color="#e67e22", visible=amber_vis,
@@ -1434,11 +1479,11 @@ def page_strategy_detail(strat_agg, sub_strat_agg, portfolios_df, instruments_df
                                 marker_color="#e74c3c", visible=red_vis,
                                 hovertemplate="<b>%{x|%b %Y}</b><br>Red: %{y:.1f}%<extra></extra>"))
         fig_st.add_trace(go.Scatter(x=sh["date"], y=sh["non_transparent_pct"]*100,
-                                    mode="lines+markers", name="Total non-transparent", visible=total_vis,
+                                    mode="lines+markers", name="Total intransparency", visible=total_vis,
                                     line=dict(color="#c0392b", width=2.5),
                                     marker=dict(size=8, color="#c0392b", line=dict(color="#0e1117", width=1.5)),
                                     hovertemplate="<b>%{x|%b %Y}</b><br>Total: %{y:.1f}%<extra></extra>"))
-        fig_st.update_layout(**DARK_LAYOUT, barmode="stack", yaxis_title="% non-transparent", height=320,
+        fig_st.update_layout(**DARK_LAYOUT, barmode="stack", yaxis_title="% intransparency", height=320,
                              margin=dict(l=20, r=20, t=10, b=20),
                              legend=dict(orientation="h", yanchor="bottom", y=1.02, **DARK_LEGEND))
         fig_st.update_xaxes(tickformat="%b %Y", dtick="M1", tickangle=-30)
@@ -1456,7 +1501,7 @@ def page_strategy_detail(strat_agg, sub_strat_agg, portfolios_df, instruments_df
         )
         bc1, bc2 = st.columns(2)
         with bc1:
-            tier_options = ["Red", "Amber", "Cumulative"]
+            tier_options = ["Red", "Amber", "Amber only"]
             tier = st.selectbox("Focus on", tier_options,
                                 index=tier_options.index(sd_focus) if sd_focus in tier_options else 0,
                                 key="sd_bd_focus")
@@ -1475,7 +1520,7 @@ def page_strategy_detail(strat_agg, sub_strat_agg, portfolios_df, instruments_df
         cut_col = cut_map[cut_label]
 
         sd_pf = scope_pf
-        tier_filter = sd_pf["tier"].isin(["Amber", "Red"]) if tier == "Cumulative" else (sd_pf["tier"] == tier)
+        tier_filter = sd_pf["tier"].isin(["Amber", "Red"]) if tier == "Amber" else (sd_pf["tier"] == "Amber" if tier == "Amber only" else sd_pf["tier"] == "Red")
         tier_pf = sd_pf[tier_filter]
         strat_total_mv = float(sd_pf["mv"].sum())
         total_tier_mv = float(tier_pf["mv"].sum())
@@ -1549,8 +1594,8 @@ def page_strategy_detail(strat_agg, sub_strat_agg, portfolios_df, instruments_df
     st.markdown('<div style="height:22px;"></div>', unsafe_allow_html=True)
     st.markdown(_section_band(
         "Recommended action plans",
-        "Non-transparent instruments scoped to the breaching Strategy by default. "
-        "Impact = percentage-point drop in that Strategy's cumulative utilisation if the holding is resolved to Green."),
+        "Intransparent (Amber + Red) instruments scoped to the breaching Strategy by default. "
+        "Impact = percentage-point drop in that Strategy's Amber utilisation (Red + Amber combined) if the holding is resolved to Green."),
         unsafe_allow_html=True)
 
     breaching_children = children[children["any_breach"]]["sub_strategy_name"].tolist()
@@ -1589,19 +1634,48 @@ def page_strategy_detail(strat_agg, sub_strat_agg, portfolios_df, instruments_df
                         "Tier", "Missing Fields", impact_col]
         scope_label = ", ".join(sel_strats) if sel_strats and len(sel_strats) <= 3 else f"{len(sel_strats)} Strateg" + ("y" if len(sel_strats)==1 else "ies")
         st.caption(
-            f"{len(disp)} non-transparent instruments across {scope_label}, highest impact first. "
+            f"{len(disp)} intransparent instruments across {scope_label}, highest impact first. "
             "Hover the ⓘ in the “Est. Impact to Utilisation (%)” column header for the full definition."
         )
+        # Export button — full Amber+Red instrument list for the SELECTED GROUP
+        # (independent of the Strategy multiselect filter above so the user can grab
+        # everything in one click).
+        group_amber_red = instruments_df[
+            (instruments_df["strategy_id"] == sid) &
+            (instruments_df["tier"].isin(["Amber", "Red"]))
+        ][[
+            "strategy_name", "sub_strategy_name", "portfolio_name",
+            "instrument_name", "instrument_type", "product_type",
+            "investment_bucket", "tier", "mv", "missing_fields", "last_updated",
+        ]].copy()
+        group_amber_red.columns = [
+            "Strategy Group", "Strategy", "Portfolio", "Instrument",
+            "Instrument Type", "Product Type", "Investment Bucket",
+            "Tier", "MV (\u00A3M)", "Missing Fields", "Last Updated",
+        ]
+        group_amber_red["Last Updated"] = pd.to_datetime(group_amber_red["Last Updated"]).dt.strftime("%Y-%m-%d")
+        csv_bytes = group_amber_red.to_csv(index=False).encode("utf-8")
+        _grp_label = str(children.iloc[0].get("strategy_name", "group")) if len(children) else "group"
+        st.download_button(
+            f"\u2B07 Export Amber + Red instrument list ({len(group_amber_red)} rows)",
+            data=csv_bytes,
+            file_name=f"amber_red_instruments_{_grp_label.replace(' ', '_')}.csv",
+            mime="text/csv",
+            key=f"ap_export_{sid}",
+            help="Exports every Amber and Red instrument in this Strategy Group as CSV, independent of the filter above.",
+            use_container_width=False,
+        )
+
         styled = apply_tier_style(disp.style, "Tier").format({impact_col: "{:.1f}"})
         st.dataframe(
             styled, use_container_width=True, height=440,
             column_config={
                 impact_col: st.column_config.Column(
                     impact_col,
-                    help=("Percentage-point drop in THIS instrument's parent Strategy's cumulative "
+                    help=("Percentage-point drop in THIS instrument's parent Strategy's Amber "
                           "utilisation if the holding were resolved to Green. Calculated as the "
                           "instrument's share of its parent Strategy's MV divided by that Strategy's "
-                          "cumulative threshold — higher means a bigger lever to pull."),
+                          "Amber threshold — higher means a bigger lever to pull."),
                 )
             },
         )
@@ -1746,6 +1820,31 @@ def page_data_quality(portfolios_df, instruments_df, audit_df):
             else:
                 st.info("No missing fields to break down.")
 
+        # ── Missing fields by Investment Bucket (DI Large/Small, CI Large/Small, FI) ──
+        st.markdown('<p class="section-title">Missing Fields by Investment Bucket</p>', unsafe_allow_html=True)
+        st.caption("DI = Direct Investment (incl. Mandates); CI = Co-investment; FI = Fund Investment. Large = private exposure > USD 200M; Small = private \u2264 USD 200M.")
+        _bucket_order = ["DI Large", "DI Small", "CI Large", "CI Small", "FI", "DI", "CI", "Other"]
+        ib_rows = []
+        for _, r in ins.iterrows():
+            for f in r["missing_fields_list"]:
+                ib_rows.append({"investment_bucket": r["investment_bucket"], "tier": r["tier"], "field": f})
+        ib_df = pd.DataFrame(ib_rows) if ib_rows else pd.DataFrame(columns=["investment_bucket","tier","field"])
+        if not ib_df.empty:
+            ib_cnt = ib_df.groupby(["investment_bucket","tier"]).size().reset_index(name="count")
+            # Order by canonical bucket sequence, then drop empties
+            present = [b for b in _bucket_order if b in ib_cnt["investment_bucket"].unique()]
+            ib_cnt["investment_bucket"] = pd.Categorical(ib_cnt["investment_bucket"], categories=present, ordered=True)
+            ib_cnt = ib_cnt.sort_values("investment_bucket")
+            fig_ib = px.bar(ib_cnt, x="investment_bucket", y="count", color="tier",
+                            color_discrete_map=TIER_COLORS,
+                            labels={"investment_bucket": "Investment Bucket", "count": "Missing-field occurrences"})
+            fig_ib.update_layout(**DARK_LAYOUT, height=300,
+                                 margin=dict(l=10, r=10, t=10, b=40),
+                                 legend=dict(orientation="h", yanchor="bottom", y=1.02, **DARK_LEGEND))
+            st.plotly_chart(fig_ib, use_container_width=True)
+        else:
+            st.info(f"No missing fields recorded for {grp} \u2014 nothing to bucket.")
+
         st.markdown('<p class="section-title">Data Completeness Trend</p>', unsafe_allow_html=True)
         random.seed(7)
         dates = pd.date_range(end=datetime.now(), periods=12, freq="MS")
@@ -1774,6 +1873,32 @@ def page_data_quality(portfolios_df, instruments_df, audit_df):
         fd["Last Refresh"] = fd["Last Refresh"].dt.strftime("%Y-%m-%d")
         fd["Avg Missing"]  = fd["Avg Missing"].round(1)
         st.dataframe(fd, use_container_width=True)
+
+        st.markdown("---")
+        st.markdown('<p class="section-title">Freshness by Investment Bucket</p>', unsafe_allow_html=True)
+        st.caption("DI = Direct Investment (incl. Mandates); CI = Co-investment; FI = Fund Investment. Large = private exposure > USD 200M; Small = private \u2264 USD 200M.")
+        if "investment_bucket" in pf.columns and len(pf):
+            fresh_ib = pf.groupby("investment_bucket").agg(
+                latest=("last_updated", "max"),
+                n_ports=("portfolio_id", "count"),
+                avg_miss=("missing_count", "mean"),
+                total_mv=("mv", "sum"),
+            ).reset_index()
+            fresh_ib["days_since"] = (datetime.now() - fresh_ib["latest"]).dt.days
+            fresh_ib["status"] = fresh_ib["days_since"].apply(
+                lambda d: "\U0001F7E2 Fresh" if d <= 30 else "\U0001F7E0 Stale" if d <= 60 else "\U0001F534 Overdue")
+            _order = ["DI Large", "DI Small", "CI Large", "CI Small", "FI", "DI", "CI", "Other"]
+            present = [b for b in _order if b in fresh_ib["investment_bucket"].unique()]
+            fresh_ib["investment_bucket"] = pd.Categorical(fresh_ib["investment_bucket"], categories=present, ordered=True)
+            fresh_ib = fresh_ib.sort_values("investment_bucket")
+            fib = fresh_ib[["investment_bucket", "n_ports", "total_mv", "latest", "days_since", "avg_miss", "status"]].copy()
+            fib.columns = ["Bucket", "# Portfolios", "Total MV (\u00A3M)", "Last Refresh", "Days Since", "Avg Missing", "Status"]
+            fib["Last Refresh"] = pd.to_datetime(fib["Last Refresh"]).dt.strftime("%Y-%m-%d")
+            fib["Avg Missing"]  = fib["Avg Missing"].round(1)
+            fib["Total MV (\u00A3M)"] = fib["Total MV (\u00A3M)"].round(0)
+            st.dataframe(fib, use_container_width=True)
+        else:
+            st.info("Investment bucket data not available.")
 
         st.markdown("---")
         st.markdown('<p class="section-title">Freshness by Portfolio</p>', unsafe_allow_html=True)
@@ -1828,7 +1953,7 @@ def page_data_quality(portfolios_df, instruments_df, audit_df):
 
 def page_whatif(strat_agg):
     st.title("🔮 What-If Simulator (WIP)")
-    st.caption("Adjust thresholds and tier reclassification to see the impact on breach status and cumulative utilisation.")
+    st.caption("Adjust thresholds and tier reclassification to see the impact on breach status and Amber utilisation.")
 
     sel = st.selectbox("Select Strategy Group", strat_agg["name"].tolist(), key="wi_sel")
     row = strat_agg[strat_agg["name"] == sel].iloc[0]
@@ -1841,7 +1966,7 @@ def page_whatif(strat_agg):
         st.markdown("**Threshold Adjustments**")
         new_red_thr   = st.slider("Red Threshold (%)",         1, 20, int(row["threshold_red"]  *100), 1) / 100
         new_amber_thr = st.slider("Amber Threshold (%)",       1, 50, int(row["threshold_amber"]*100), 1) / 100
-        new_cum_thr   = st.slider("Cumulative Threshold (%)",  1, 60, int(row["threshold_cum"]  *100), 1) / 100
+        new_cum_thr   = st.slider("Amber Threshold (%)",  1, 60, int(row["threshold_cum"]  *100), 1) / 100
 
         st.markdown("**Tier Reclassification (simulate uplift)**")
         a2g = st.slider("Reclassify Amber → Green (%pt)", 0, 30, 0, 1) / 100
@@ -1869,23 +1994,23 @@ def page_whatif(strat_agg):
             st.markdown("**Current**")
             st.metric("Red",   fmt_pct(row["Red_pct"]))
             st.metric("Amber", fmt_pct(row["Amber_pct"]))
-            st.metric("Cumulative util.", f"{cur_util*100:.0f}%")
+            st.metric("Amber util.", f"{cur_util*100:.0f}%")
             st.markdown("Breach status")
             st.error("🔴 Red breach")        if cur_rb else st.success("🔴 Red OK")
             st.error("🟠 Amber breach")      if cur_ab else st.success("🟠 Amber OK")
-            st.error("⛔ Cumulative breach") if cur_cb else st.success("⛔ Cumulative OK")
+            st.error("⛔ Amber breach") if cur_cb else st.success("✓ Amber OK")
         with mc2:
             st.markdown("**Simulated**")
             st.metric("Red",   fmt_pct(sim_red),
                        delta=f"{(sim_red-row['Red_pct'])*100:+.1f}%pt", delta_color="inverse")
             st.metric("Amber", fmt_pct(sim_amber),
                        delta=f"{(sim_amber-row['Amber_pct'])*100:+.1f}%pt", delta_color="inverse")
-            st.metric("Cumulative util.", f"{sim_util*100:.0f}%",
+            st.metric("Amber util.", f"{sim_util*100:.0f}%",
                        delta=f"{(sim_util-cur_util)*100:+.0f}%pt", delta_color="inverse")
             st.markdown("Breach status")
             st.error("🔴 Red breach")        if sim_rb else st.success("🔴 Red OK")
             st.error("🟠 Amber breach")      if sim_ab else st.success("🟠 Amber OK")
-            st.error("⛔ Cumulative breach") if sim_cb else st.success("⛔ Cumulative OK")
+            st.error("⛔ Amber breach") if sim_cb else st.success("✓ Amber OK")
 
     st.markdown("---")
     st.markdown('<p class="section-title">Tier Composition: Before vs After</p>', unsafe_allow_html=True)
@@ -1949,7 +2074,7 @@ def main():
 
     # Theme — must be initialised BEFORE any markdown/plot helper renders.
     if "theme_mode" not in st.session_state:
-        st.session_state["theme_mode"] = "dark"
+        st.session_state["theme_mode"] = "cream"
     _render_theme_css()
 
     # Top bar: brand on the left, meta + theme toggle on the right.
@@ -1980,7 +2105,7 @@ def main():
                 st.rerun()
 
 
-    PAGES = ["Total Portfolio", "Strategy Detail", "Instrument Detail",
+    PAGES = ["Total Portfolio", "Strategy Detail",
              "Data Quality", "What-If Simulator (WIP)"]
 
     if "active_page" not in st.session_state:
@@ -2021,7 +2146,6 @@ def main():
 
     if   active == "Total Portfolio":   page_portfolio_overview(strat_agg, sub_strat_agg, portfolios_df, history_df)
     elif active == "Strategy Detail":   page_strategy_detail(strat_agg, sub_strat_agg, portfolios_df, instruments_df, history_df, sub_history_df)
-    elif active == "Instrument Detail": page_instrument_detail(instruments_df)
     elif active == "Data Quality":      page_data_quality(portfolios_df, instruments_df, audit_df)
     elif active == "What-If Simulator (WIP)": page_whatif(strat_agg)
 
