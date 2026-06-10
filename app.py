@@ -297,7 +297,7 @@ STRATEGY_FAMILY = {
     "PE Mezz":               {"direct": "Credit Single-Asset (private-aligned)", "fund": "Credit Fund (private-aligned)"},
     "Infrastructure Active": {"direct": "Unlisted Infra",                        "fund": "Infra Fund"},
     "Infrastructure Debt":   {"direct": "Credit Single-Asset (private-aligned)", "fund": "Credit Fund (private-aligned)"},
-    "Multi Asset":           {"direct": "Multi-Asset Fund",                      "fund": "Multi-Asset Fund"},
+    "Multi Asset1":          {"direct": "Multi-Asset Fund",                      "fund": "Multi-Asset Fund"},
 }
 
 def _pick_family(strategy_name, instrument_type):
@@ -371,7 +371,7 @@ OWNERS_BY_STRAT = {
     "Real Estate":        "Strategy Ops – Real Estate",
     "Private Equities":   "Strategy Ops – Private Equity",
     "Infrastructure":     "Strategy Ops – Infrastructure",
-    "Others":             "Strategy Ops",
+    "Multi-Asset":        "Strategy Ops",
 }
 
 # Pass 14: Action Tracker templates moved to module scope (was duplicated inside
@@ -655,7 +655,7 @@ STRATEGY_META = [
     ("G04", "Real Estate",      "Carol White"),
     ("G05", "Private Equities", "Frank Brown"),
     ("G06", "Infrastructure",   "Bob Smith"),
-    ("G07", "Others",           "Sarah Kim"),
+    ("G07", "Multi-Asset",      "Sarah Kim"),
 ]
 
 # Strategy Status panel grouping: each Strategy Group is classed Public or Private.
@@ -665,7 +665,7 @@ PRODUCT_GROUPING = {
     "EQ Active":        "Public",
     "Fixed Income":     "Public",
     "Hedge Fund":       "Public",
-    "Others":           "Public",   # Multi Asset
+    "Multi-Asset":      "Public",   # Multi Asset1
     "Private Equities": "Private",
     "Infrastructure":   "Private",
     "Real Estate":      "Private",
@@ -673,61 +673,71 @@ PRODUCT_GROUPING = {
 
 # Sub-strategies (= new "Strategy") — thresholds live HERE now.
 # Format per child: (sub_id, sub_name, thr_red, thr_amber, thr_cum)
+# Pass 18: proposed policy limits applied from the stakeholder spreadsheet.
+# Tuple shape: (sub_id, sub_name, thr_red, thr_amber, thr_cum).
+# thr_amber is kept equal to thr_cum since the dashboard reports Red and the
+# cumulative Amber + Red — we don't track Amber-tier-only as a separate limit.
+# Multi Asset left unchanged (no mapping provided in the spreadsheet).
 SUB_STRATEGY_META = {
     "G01": [
-        ("S01a", "EQ Developed Markets", 0.05, 0.10, 0.15),
-        ("S01b", "EQ Emerging Markets",  0.05, 0.12, 0.17),
+        ("S01a", "EQ Developed Markets", 0.00, 0.15, 0.15),
+        ("S01b", "EQ Emerging Markets",  0.00, 0.05, 0.05),
     ],
     "G02": [
-        ("S02a", "FI Active",            0.05, 0.10, 0.15),
-        ("S02b", "HY Credit",            0.05, 0.15, 0.20),
-        ("S02c", "MAARS",                0.05, 0.15, 0.20),
-        ("S02d", "EILB",                 0.05, 0.10, 0.15),
+        ("S02a", "FI Active",            0.00, 0.13, 0.13),
+        ("S02b", "HY Credit",            0.00, 0.58, 0.58),
+        ("S02c", "MAARS",                0.00, 0.00, 0.00),
+        ("S02d", "EILB",                 0.00, 0.03, 0.03),
     ],
     "G03": [
-        ("S03a", "Hedge Fund 1",         0.10, 0.25, 0.35),
-        ("S03b", "Hedge Fund 2",         0.10, 0.25, 0.35),
+        # HF1/HF2 mapped to MA Ultra per user direction
+        ("S03a", "Hedge Fund 1",         0.23, 1.00, 1.00),
+        ("S03b", "Hedge Fund 2",         0.23, 1.00, 1.00),
     ],
     "G04": [
-        ("S04a", "RE Bricks and Mortar", 0.08, 0.20, 0.28),
-        ("S04b", "RE Debt",              0.05, 0.15, 0.20),
+        ("S04a", "RE Bricks and Mortar", 0.00, 0.11, 0.11),
+        # RE Debt mapped to RE Credit
+        ("S04b", "RE Debt",              0.00, 0.02, 0.02),
     ],
     "G05": [
-        ("S05a", "PE Active",            0.05, 0.25, 0.30),
-        ("S05b", "PE Secondaries",       0.05, 0.25, 0.30),
-        ("S05c", "PE Mezz",              0.05, 0.30, 0.35),
+        ("S05a", "PE Active",            0.09, 0.65, 0.65),
+        # PE Secondaries mapped to PSL
+        ("S05b", "PE Secondaries",       0.00, 0.45, 0.45),
+        ("S05c", "PE Mezz",              0.00, 0.40, 0.40),
     ],
     "G06": [
-        ("S06a", "Infrastructure Active", 0.05, 0.25, 0.30),
-        ("S06b", "Infrastructure Debt",   0.05, 0.20, 0.25),
+        ("S06a", "Infrastructure Active", 0.00, 0.24, 0.24),
+        ("S06b", "Infrastructure Debt",   0.00, 0.40, 0.40),
     ],
     "G07": [
-        ("S07a", "Multi Asset",          0.05, 0.20, 0.25),
+        # Multi Asset — unchanged (no spreadsheet mapping yet)
+        ("S07a", "Multi Asset1",         0.05, 0.20, 0.25),
     ],
 }
 
-# Engineered tier mix per Strategy (= sub_strategy). Only "PE Active" breaches.
+# Pass 18.1: tier mix tuned against the real proposed limits applied in Pass 18.
+# Result: only PE Secondaries breaches; Infra Active sits in ALERT; nothing
+# else over its threshold.  Strategies with 0% Red limit have zero Red in the
+# data (no more 999% spikes).  Tight cumulative limits (MAARS 0%, RE Debt 2%,
+# EILB 3%) get fully Green tier-mix to absorb multinomial sampling variance.
 # [green, amber, red] proportions.
 TIER_MIX = {
-    # Comfortable margin under each Strategy's own thresholds. Small-sample
-    # multinomial draws can spike tier proportions; values below are tuned
-    # to keep all strategies safely OK except PE Active.
-    "EQ Developed Markets":   [1.00, 0.00, 0.00],
-    "EQ Emerging Markets":    [0.99, 0.01, 0.00],
-    "FI Active":              [1.00, 0.00, 0.00],
-    "HY Credit":              [0.98, 0.02, 0.00],
-    "MAARS":                  [0.99, 0.01, 0.00],
-    "EILB":                   [1.00, 0.00, 0.00],
-    "Hedge Fund 1":           [0.92, 0.07, 0.01],
-    "Hedge Fund 2":           [0.92, 0.07, 0.01],
-    "RE Bricks and Mortar":   [0.93, 0.06, 0.01],
-    "RE Debt":                [0.96, 0.04, 0.00],
-    "PE Active":              [0.81, 0.18, 0.01],   # BREACH — modest, all three checks 105–120% util
-    "PE Secondaries":         [0.88, 0.11, 0.01],
-    "PE Mezz":                [0.85, 0.13, 0.02],
-    "Infrastructure Active":  [0.82, 0.18, 0.00],   # ALERT — Amber util ~97%, no breach
-    "Infrastructure Debt":    [0.96, 0.04, 0.00],
-    "Multi Asset":            [0.93, 0.06, 0.01],
+    "EQ Developed Markets":   [0.98, 0.02, 0.00],  # tuned vs seed — target Cum ~ 8% well under 15%
+    "EQ Emerging Markets":    [0.98, 0.02, 0.00],  # target Cum ~ 2% under 5%
+    "FI Active":              [0.98, 0.02, 0.00],  # target Cum ~ 4% under 13%
+    "HY Credit":              [0.85, 0.15, 0.00],  # target Cum ~ 20% under 58%
+    "MAARS":                  [1.00, 0.00, 0.00],  # 0% limit — must be fully Green
+    "EILB":                   [1.00, 0.00, 0.00],  # 3% tight limit — safety margin
+    "Hedge Fund 1":           [0.78, 0.13, 0.09],  # under 100% Cum, 23% Red
+    "Hedge Fund 2":           [0.78, 0.13, 0.09],  # under 100% Cum, 23% Red
+    "RE Bricks and Mortar":   [0.97, 0.03, 0.00],  # target Cum ~ 6% under 11%
+    "RE Debt":                [1.00, 0.00, 0.00],  # 2% tight limit — fully Green
+    "PE Active":              [0.86, 0.13, 0.01],  # target Cum ~ 30%, Red ~ 6% well under 9%,  # target Cum ~ 25% under 65%, no Red exposure
+    "PE Secondaries":         [0.35, 0.65, 0.00],  # BREACH — tuned for ~118% util (was 0.20/0.80 → 150%)
+    "PE Mezz":                [0.75, 0.25, 0.00],  # target Cum ~ 25% under 40%
+    "Infrastructure Active":  [0.84, 0.16, 0.00],  # ALERT — target Cum ~ 20% (~83% util)
+    "Infrastructure Debt":    [0.85, 0.15, 0.00],  # under 40%
+    "Multi Asset1":           [0.92, 0.07, 0.01],  # under 25% Cum, under 5% Red
 }
 
 # Product / Instrument-Type pools — keyed by Strategy Group name.
@@ -738,7 +748,7 @@ PRODUCT_BY_STRATEGY = {
     "Real Estate":      ["Private"],
     "Private Equities": ["Private"],
     "Infrastructure":   ["Private"],
-    "Others":           ["Public", "Private"],
+    "Multi-Asset":      ["Public", "Private"],
 }
 INSTRUMENT_BY_STRATEGY = {
     "EQ Active":        ["Mandate", "Direct Investment"],
@@ -747,7 +757,7 @@ INSTRUMENT_BY_STRATEGY = {
     "Real Estate":      ["Fund Investment", "Direct Investment", "Co-investment"],
     "Private Equities": ["Fund Investment", "Co-investment"],
     "Infrastructure":   ["Fund Investment", "Direct Investment", "Co-investment"],
-    "Others":           ["Fund Investment", "Mandate"],
+    "Multi-Asset":      ["Fund Investment", "Mandate"],
 }
 
 # ─── Synthetic Data ───────────────────────────────────────────────────────────
@@ -773,11 +783,26 @@ def _load_data_from_excel(filepath):
     sub_history_df    = _pd.read_excel(xl, "Sub_History")
     audit_df          = _pd.read_excel(xl, "Audit")
 
-    # Reconstruct list columns (Excel stored them as |-separated strings)
+    # Reconstruct list columns. Older templates stored them as |-separated
+    # strings; newer regens may have written Python list repr strings. Handle both.
+    import ast as _ast
     def _to_list(s):
         if s is None or (isinstance(s, float) and pd.isna(s)) or s == "":
             return []
-        return str(s).split("|")
+        if isinstance(s, list):
+            return s
+        s = str(s).strip()
+        if not s or s in ("[]", "—", "nan"):
+            return []
+        # list-repr path: try literal_eval first
+        if s.startswith("[") and s.endswith("]"):
+            try:
+                v = _ast.literal_eval(s)
+                return list(v) if isinstance(v, (list, tuple)) else [str(v)]
+            except (ValueError, SyntaxError):
+                pass
+        # pipe-separated fallback (original Pass 12 format)
+        return [x.strip() for x in s.split("|") if x.strip()]
     for _df in (portfolios_df, instruments_df):
         if "missing_fields_list" in _df.columns:
             _df["missing_fields_list"] = _df["missing_fields_list"].apply(_to_list)
@@ -870,9 +895,14 @@ def _load_data_from_excel(filepath):
     sub_strat_agg = (sub_strategies_df.set_index("sub_strategy_id").join(sub_total_mv).join(sub_pct).reset_index())
     sub_strat_agg["name"] = sub_strat_agg["sub_strategy_name"]
     sub_strat_agg["cum_pct"] = sub_strat_agg["Amber_pct"] + sub_strat_agg["Red_pct"]
-    sub_strat_agg["red_utilisation"]   = sub_strat_agg["Red_pct"]   / sub_strat_agg["threshold_red"].replace(0, _pd.NA)
-    sub_strat_agg["amber_utilisation"] = sub_strat_agg["Amber_pct"] / sub_strat_agg["threshold_amber"].replace(0, _pd.NA)
-    sub_strat_agg["cum_utilisation"]   = sub_strat_agg["cum_pct"]   / sub_strat_agg["threshold_cum"].replace(0, _pd.NA)
+    # Pass 18: handle 0/0 and x/0 explicitly so the UI never shows nan% or inf%.
+    def _util(numer, denom):
+        ratio = numer / denom.replace(0, _pd.NA)
+        ratio = ratio.where(~((numer > 0) & (denom == 0)), 9.99)  # x / 0  → 999%
+        return ratio.fillna(0.0)
+    sub_strat_agg["red_utilisation"]   = _util(sub_strat_agg["Red_pct"],   sub_strat_agg["threshold_red"])
+    sub_strat_agg["amber_utilisation"] = _util(sub_strat_agg["Amber_pct"], sub_strat_agg["threshold_amber"])
+    sub_strat_agg["cum_utilisation"] = _util(sub_strat_agg["cum_pct"], sub_strat_agg["threshold_cum"])
     for col in ("red_utilisation","amber_utilisation","cum_utilisation"):
         sub_strat_agg[col] = sub_strat_agg[col].fillna(0)
     sub_strat_agg["red_breach"]   = sub_strat_agg["Red_pct"]   > sub_strat_agg["threshold_red"]
@@ -920,6 +950,16 @@ def _load_data_from_excel(filepath):
     sub_strat_agg["breach_reason"]    = [t[0] for t in _ra]
     sub_strat_agg["suggested_action"] = [t[1] for t in _ra]
 
+    # Pass 20: synthesize stress_loss_stagflation if the Excel template doesn't carry it
+    if "stress_loss_stagflation" not in instruments_df.columns:
+        import random as _r
+        _seed_bak = _r.getstate(); _r.seed(20260605)
+        def _stress(t):
+            if t == "Green": return round(-(0.08 + _r.uniform(0, 0.07)), 4)
+            if t == "Amber": return round(-(0.15 + _r.uniform(0, 0.15)), 4)
+            return round(-(0.30 + _r.uniform(0, 0.25)), 4)
+        instruments_df["stress_loss_stagflation"] = instruments_df["tier"].apply(_stress)
+        _r.setstate(_seed_bak)
     # Pass 16.1: drop-then-map to survive Excel templates that already carry these columns.
     instruments_df = instruments_df.drop(columns=["strategy_total_mv", "mv_pct_of_strategy"], errors="ignore")
     _strat_totals_map = portfolios_df.groupby("strategy_id")["mv"].sum().to_dict()
@@ -1105,6 +1145,16 @@ def generate_all_data(_tier_mix_sig: str = ""):
                 itier = tier
                 # Pass 15: framework-aligned missing fields
                 im, im_tiers = _gen_missing(sub_name, instrument_type, itier, random)
+                # Pass 20: per-instrument stress loss under Stagflation scenario.
+                # Negative %, varies by tier (more opaque → more conservative)
+                # + random noise per instrument. No tier override at runtime —
+                # the number stored here is the number that's used.
+                if itier == "Green":
+                    _stress = -(0.08 + random.uniform(0, 0.07))    # -8 to -15%
+                elif itier == "Amber":
+                    _stress = -(0.15 + random.uniform(0, 0.15))    # -15 to -30%
+                else:  # Red
+                    _stress = -(0.30 + random.uniform(0, 0.25))    # -30 to -55%
                 instr_rows.append({
                     "instrument_id":     f"I{pid}{ii+1:02d}",
                     "instrument_name":   f"{sname[:10]} Co. {ii+1}",
@@ -1123,6 +1173,7 @@ def generate_all_data(_tier_mix_sig: str = ""):
                     "missing_fields": ", ".join(im) if im else "—",
                     "missing_fields_list": im,
                     "missing_tiers":     im_tiers,
+                    "stress_loss_stagflation": round(_stress, 4),
                     "region": reg, "sector": sect,
                     "last_updated": datetime.now() - timedelta(days=random.randint(0, 120)),
                 })
@@ -1174,9 +1225,17 @@ def generate_all_data(_tier_mix_sig: str = ""):
         sub_tier_mv[["sub_strategy_id","Green_pct","Amber_pct","Red_pct","total_mv"]],
         on="sub_strategy_id")
     sub_strat_agg["cum_pct"] = sub_strat_agg["Amber_pct"] + sub_strat_agg["Red_pct"]
-    sub_strat_agg["red_utilisation"]   = sub_strat_agg["Red_pct"]   / sub_strat_agg["threshold_red"]
-    sub_strat_agg["amber_utilisation"] = sub_strat_agg["Amber_pct"] / sub_strat_agg["threshold_amber"]
-    sub_strat_agg["cum_utilisation"]   = sub_strat_agg["cum_pct"]   / sub_strat_agg["threshold_cum"]
+    # Pass 18: clean utilisation div — when limit is 0% (some real policy limits are
+    # 0%, meaning the Strategy must be fully Green) and exposure is also 0 we want
+    # to show 0% utilisation, not NaN. When limit is 0% and exposure > 0 we cap at
+    # 999% so the display reads as a clear breach without rendering "inf%".
+    def _util(numer, denom):
+        ratio = numer / denom.replace(0, np.nan)
+        ratio = ratio.where(~((numer > 0) & (denom == 0)), 9.99)  # x / 0  → 999%
+        return ratio.fillna(0.0)
+    sub_strat_agg["red_utilisation"]   = _util(sub_strat_agg["Red_pct"],   sub_strat_agg["threshold_red"])
+    sub_strat_agg["amber_utilisation"] = _util(sub_strat_agg["Amber_pct"], sub_strat_agg["threshold_amber"])
+    sub_strat_agg["cum_utilisation"]   = _util(sub_strat_agg["cum_pct"],   sub_strat_agg["threshold_cum"])
     sub_strat_agg["red_breach"]   = sub_strat_agg["Red_pct"]   > sub_strat_agg["threshold_red"]
     sub_strat_agg["amber_breach"] = sub_strat_agg["Amber_pct"] > sub_strat_agg["threshold_amber"]
     sub_strat_agg["cum_breach"]   = sub_strat_agg["cum_pct"]   > sub_strat_agg["threshold_cum"]
@@ -1206,9 +1265,14 @@ def generate_all_data(_tier_mix_sig: str = ""):
     strat_agg["amber_variance"]  = strat_agg["Amber_pct"] - strat_agg["threshold_amber"]
     strat_agg["red_variance"]    = strat_agg["Red_pct"]   - strat_agg["threshold_red"]
     strat_agg["cum_variance"]    = strat_agg["cum_pct"]   - strat_agg["threshold_cum"]
-    strat_agg["red_utilisation"]   = strat_agg["Red_pct"]   / strat_agg["threshold_red"].replace(0, pd.NA)
-    strat_agg["amber_utilisation"] = strat_agg["Amber_pct"] / strat_agg["threshold_amber"].replace(0, pd.NA)
-    strat_agg["cum_utilisation"]   = strat_agg["cum_pct"]   / strat_agg["threshold_cum"].replace(0, pd.NA)
+    # Pass 18: same 0/0 + x/0 handling at the Strategy Group level
+    def _util_g(numer, denom):
+        ratio = numer / denom.replace(0, pd.NA)
+        ratio = ratio.where(~((numer > 0) & (denom == 0)), 9.99)
+        return ratio.fillna(0.0)
+    strat_agg["red_utilisation"]   = _util_g(strat_agg["Red_pct"],   strat_agg["threshold_red"])
+    strat_agg["amber_utilisation"] = _util_g(strat_agg["Amber_pct"], strat_agg["threshold_amber"])
+    strat_agg["cum_utilisation"] = _util_g(strat_agg["cum_pct"], strat_agg["threshold_cum"])
     strat_agg = strat_agg.fillna({"red_utilisation": 0, "amber_utilisation": 0, "cum_utilisation": 0})
 
     # Historical data (12 months, strategy-level).
@@ -1253,9 +1317,25 @@ def generate_all_data(_tier_mix_sig: str = ""):
     }
     sub_mv_map = dict(zip(sub_strat_agg["sub_strategy_id"], sub_strat_agg["total_mv"]))
     sub_hist_rows = []
+    # Pass 18.2: per-strategy threshold caps so older months don't accidentally
+    # breach when the current snapshot is clean.  Strategies currently in breach
+    # keep the unconstrained drift (so PE Secondaries shows a real breach
+    # history); strategies currently OK are clamped to 90% of their limits.
+    sub_thr_map = {
+        r["sub_strategy_id"]: (float(r["threshold_red"]),
+                                float(r["threshold_cum"]),
+                                bool(r["red_breach"]),
+                                bool(r["cum_breach"]))
+        for _, r in sub_strat_agg.iterrows()
+    }
     for _, ss in sub_strat_agg.iterrows():
         ssid = ss["sub_strategy_id"]
         cur_a, cur_r = sub_current_map.get(ssid, (0.0, 0.0))
+        thr_red, thr_cum, cur_red_breach, cur_cum_breach = sub_thr_map.get(
+            ssid, (1.0, 1.0, False, False))
+        # Caps used for non-breaching strategies — leave 10% headroom.
+        red_cap = thr_red * 0.9 if not cur_red_breach else 1.0
+        cum_cap = thr_cum * 0.9 if not cur_cum_breach else 1.0
         for mo in range(0, 12):
             dt = today.replace(day=1) - timedelta(days=30*mo)
             if mo == 0:
@@ -1264,6 +1344,15 @@ def generate_all_data(_tier_mix_sig: str = ""):
                 drift = mo * 0.004
                 ba = max(0.0, min(0.95, cur_a + drift + random.uniform(-0.015, 0.025)))
                 br = max(0.0, min(0.30, cur_r + drift * 0.5 + random.uniform(-0.005, 0.012)))
+                # Clamp to thresholds (for currently-OK strategies)
+                if not cur_red_breach:
+                    br = min(br, red_cap)
+                if not cur_cum_breach:
+                    cum_sum = ba + br
+                    if cum_sum > cum_cap and cum_sum > 0:
+                        scale = cum_cap / cum_sum
+                        ba *= scale
+                        br *= scale
             bg = max(0.0, 1 - ba - br)
             sub_hist_rows.append({
                 "date": dt,
@@ -2017,9 +2106,9 @@ def _ai_observations_html(strat_agg, sub_strat_agg, portfolios_df, history_df, s
                 f'<div class="metric-label" style="margin-bottom:4px;color:var(--accent);">Biggest leverage opportunity</div>'
                 f'<div style="font-size:14px;color:var(--text-soft);line-height:1.6;">'
                 f'<b>{top_field}</b> is the most widespread data gap \u2014 missing on '
-                f'<span class="kpi-number">{top_n}</span> Amber + Red instruments. '
-                f'Resolving it across all affected holdings could shrink Amber + Red exposure by up to '
-                f'<b style="color:var(--accent);"><span class="kpi-number">{_impact_pct:.2f}%</span></b> of portfolio MV.'
+                f'<span class="kpi-number">{top_n}</span> instruments. '
+                f'Resolving it across all affected holdings could reduce the total portfolio\'s Amber + Red exposure by up to '
+                f'<b style="color:var(--accent);"><span class="kpi-number">{_impact_pct:.2f}%</span></b>.'
                 f'</div></div>'
             )
 
@@ -2332,15 +2421,19 @@ def page_portfolio_overview(strat_agg, sub_strat_agg, portfolios_df, history_df,
             fig_trend.update_yaxes(title_font=dict(size=14), tickfont=dict(size=12))
             st.plotly_chart(fig_trend, use_container_width=True)
         else:
-            _tier_label = "Red" if trend_tier == "Red" else "Amber + Red"
             st.markdown(
-                f'<p class="section-title" style="margin-top:0.5rem;">{_tier_label} Utilisation Trend</p>',
+                f'<p class="section-title" style="margin-top:0.5rem;">Utilisation Trend</p>',
                 unsafe_allow_html=True
             )
             st.caption(f"AUM-weighted portfolio utilisation against the combined limit. The dashed line marks the 100% policy limit.")
 
-            _hf_t = hf.merge(strat_agg[["strategy_id","threshold_red","threshold_cum"]],
-                             on="strategy_id", how="left")
+            # Pass 18.4: use sub_history_df + sub_strat_agg thresholds so the most
+            # recent point exactly matches the Total Portfolio utilisation cards
+            # at the top of the page. (strat_agg thresholds use simple .mean()
+            # aggregation across children, which doesn't match the cards' MV-weighted formula.)
+            _shf_t = sub_history_df.merge(
+                sub_strat_agg[["sub_strategy_id","threshold_red","threshold_cum"]],
+                on="sub_strategy_id", how="left")
             def _util_for(g):
                 mv = g["mv"].sum()
                 if mv <= 0: return pd.Series({"red_util": 0.0, "cum_util": 0.0})
@@ -2352,7 +2445,7 @@ def page_portfolio_overview(strat_agg, sub_strat_agg, portfolios_df, history_df,
                     "red_util": (w_red / w_thr_red * 100) if w_thr_red > 0 else 0.0,
                     "cum_util": ((w_red + w_amb) / w_thr_cum * 100) if w_thr_cum > 0 else 0.0,
                 })
-            hagg_util = _hf_t.groupby("date").apply(_util_for).reset_index()
+            hagg_util = _shf_t.groupby("date").apply(_util_for).reset_index()
             # Pass 17.8: add BOTH series so the legend toggle works the same way
             # as the Intransparency view. The clicked tier starts fully visible;
             # the other line starts as legendonly (one click to show).
@@ -2689,9 +2782,8 @@ def page_strategy_detail(strat_agg, sub_strat_agg, portfolios_df, instruments_df
             fig_st.update_yaxes(title_font=dict(size=14), tickfont=dict(size=12))
             st.plotly_chart(fig_st, use_container_width=True)
         else:
-            _tier_label = "Red" if sd_focus == "Red" else "Amber + Red"
             st.markdown(
-                f'<p class="section-title" style="margin-top:0.5rem;">{_tier_label} Utilisation Trend</p>',
+                f'<p class="section-title" style="margin-top:0.5rem;">Utilisation Trend</p>',
                 unsafe_allow_html=True)
             st.caption(f"{scope_name} — utilisation against the combined limit. The dashed line marks the 100% policy limit.")
             _thr = children.set_index("sub_strategy_id")[["threshold_red","threshold_cum"]]
@@ -3328,7 +3420,7 @@ def _action_card_html(row):
         f'<div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">'
         f'<b>Strategy:</b> {row["strategy_name"]} \u00b7 <b>Owner:</b> {row["owner_team"]}'
         f'</div>'
-        f'<div style="font-size:11px;color:var(--text-soft);margin-bottom:4px;">Target: {row["target_date"].strftime("%d %b %Y")}</div>'
+        f'<div style="font-size:11px;color:var(--text-soft);margin-bottom:4px;">Target completion date: {row["target_date"].strftime("%d %b %Y")}</div>'
         f'<div style="font-size:11px;color:var(--text-subtle);font-style:italic;padding-top:6px;border-top:1px dashed var(--border-default);margin-top:6px;line-height:1.5;">'
         f'Update ({row["last_update"].strftime("%d %b")}): {row["last_update_note"]}'
         f'</div>'
@@ -3378,14 +3470,6 @@ def page_action_tracker(action_items_df, sub_strat_agg, sub_history_df):
     st.title("\U0001F3AF Action Tracker")
     st.caption("Transparency improvement workflow — initiatives owned by asset-department leads, with status and timelines.")
 
-    # ── Recognition: most-improved strategies ────────────────────────────────
-    rec_html = _most_improved_widget(sub_history_df, sub_strat_agg)
-    if rec_html:
-        st.markdown(_section_band("Recognition – Most Improved Strategies",
-                                  "Strategies whose Green-tier share grew most over the last 3 months."),
-                    unsafe_allow_html=True)
-        st.markdown(rec_html, unsafe_allow_html=True)
-
     # ── Filters ──────────────────────────────────────────────────────────────
     f1, f2, _f3 = st.columns([1, 1, 2])
     with f1:
@@ -3407,6 +3491,20 @@ def page_action_tracker(action_items_df, sub_strat_agg, sub_history_df):
     st.markdown(_section_band("Action Plan Board",
                               f"{len(aif)} initiatives across the portfolio. Cards grouped by status."),
                 unsafe_allow_html=True)
+    # Pass 19.1: planned integration note — actions are read-only in the
+    # prototype; production deployment will sync with the team's tracker.
+    st.markdown(
+        '<div style="background:rgba(29,78,216,0.06);border-left:3px solid var(--accent);'
+        'border-radius:4px;padding:10px 14px;margin:-4px 0 14px 0;font-size:13px;'
+        'color:var(--text-soft);line-height:1.5;">'
+        '<b style="color:var(--accent);">ⓘ Integration note</b> &nbsp;·&nbsp; '
+        'Action items are read-only in this prototype. In production the board will link '
+        'to the team’s existing tracker (<b>Jira</b> or <b>Dataquest</b>) — cards will '
+        'sync status, owner, target date, and updates directly from the source of truth, '
+        'and new actions will be created from there.'
+        '</div>',
+        unsafe_allow_html=True,
+    )
     statuses = ["Planned", "In Progress", "Done"]
     col_planned, col_inprog, col_done = st.columns(3)
     for col, status in zip([col_planned, col_inprog, col_done], statuses):
@@ -3634,124 +3732,296 @@ def page_data_quality(portfolios_df, instruments_df, audit_df):
 # PAGE 5 — What-If Simulator
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def page_whatif(strat_agg):
-    st.title("🔮 What-If Simulator (WIP)")
-    st.caption("Adjust thresholds and tier reclassification to see the impact on breach status and Amber utilisation.")
+def page_whatif(sub_strat_agg, instruments_df, portfolios_df):
+    """Pass 20.6: Stress Loss Simulator (Stagflation), polished dark + cream.
+    Slider per Strategy = Assumed Amber + Red share for the simulation. Two
+    quick-action buttons pre-fill all sliders at once (policy / current actuals).
+    No mode toggle — the slider value IS the assumed share, full stop."""
+    # Dark-mode card polish. Streamlit's default bordered container is too
+    # subtle on a near-black background. Light/cream mode already looks fine
+    # so we only inject the override when theme=dark.
+    if st.session_state.get("theme_mode") == "dark":
+        st.markdown("""
+        <style>
+        [data-testid="stVerticalBlockBorderWrapper"] {
+          background: var(--bg-surface) !important;
+          border: 1px solid var(--border-default) !important;
+          border-radius: 10px !important;
+          transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        [data-testid="stVerticalBlockBorderWrapper"]:hover {
+          border-color: var(--border-strong) !important;
+          box-shadow: 0 2px 10px rgba(0,0,0,0.35);
+        }
+        [data-testid="stVerticalBlockBorderWrapper"] > div > div {
+          padding: 4px 2px !important;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+    st.title("\U0001F52E What-If Simulator — Stress Loss")
+    st.caption(
+        "Stagflation scenario. Each slider sets the **assumed Amber + Red share** for that Strategy. "
+        "Drag a slider or use the quick-action buttons to model a scenario."
+    )
 
-    sel = st.selectbox("Select Strategy Group", strat_agg["name"].tolist(), key="wi_sel")
-    row = strat_agg[strat_agg["name"] == sel].iloc[0]
+    # ── Per-instrument baseline + tier averages ─────────────────────────────
+    inst = instruments_df.copy()
+    inst["stress_contribution"] = inst["mv"] * inst["stress_loss_stagflation"]
+    total_mv = float(inst["mv"].sum())
+    baseline_loss_pct = inst["stress_contribution"].sum() / total_mv if total_mv > 0 else 0
 
-    st.markdown("---")
-    col_in, col_out = st.columns(2)
+    _g_all  = inst[inst["tier"] == "Green"]
+    _ar_all = inst[inst["tier"].isin(["Amber","Red"])]
+    port_avg_g  = (_g_all["mv"]  * _g_all["stress_loss_stagflation"]).sum()  / _g_all["mv"].sum()  if _g_all["mv"].sum()  > 0 else baseline_loss_pct
+    port_avg_ar = (_ar_all["mv"] * _ar_all["stress_loss_stagflation"]).sum() / _ar_all["mv"].sum() if _ar_all["mv"].sum() > 0 else baseline_loss_pct
 
-    with col_in:
-        st.subheader("Adjust Parameters (Strategy Group)")
-        st.markdown("**Threshold Adjustments**")
-        new_red_thr   = st.slider("Red Threshold (%)",         1, 20, int(row["threshold_red"]  *100), 1) / 100
-        new_amber_thr = st.slider("Amber Threshold (%)",       1, 50, int(row["threshold_amber"]*100), 1) / 100
-        new_cum_thr   = st.slider("Amber Threshold (%)",  1, 60, int(row["threshold_cum"]  *100), 1) / 100
+    # Pre-compute current Amber + Red share per sub_strategy_id (needed for the quick
+    # actions and for the "(current X%)" hint on each card).
+    _cur_ar = {}
+    for _sid in sub_strat_agg["sub_strategy_id"].unique():
+        _si = inst[inst["sub_strategy_id"] == _sid]
+        _smv = float(_si["mv"].sum())
+        _amv = float(_si[_si["tier"].isin(["Amber","Red"])]["mv"].sum()) if _smv > 0 else 0
+        _cur_ar[_sid] = (_amv / _smv) if _smv > 0 else 0.0
 
-        st.markdown("**Tier Reclassification (simulate uplift)**")
-        a2g = st.slider("Reclassify Amber → Green (%pt)", 0, 30, 0, 1) / 100
-        r2a = st.slider("Reclassify Red → Amber (%pt)",   0, 15, 0, 1) / 100
+    # ── Top toolbar: two quick actions + reset ──────────────────────────────
+    rc1, rc2, _rc3 = st.columns([1.3, 1.3, 2])
+    with rc1:
+        if st.button("\U0001F4CB  Assume all at policy limit",
+                      key="wi_apply_policy", use_container_width=True,
+                      help="Worst case: every Strategy fills its current policy limit."):
+            for _, _r in sub_strat_agg.iterrows():
+                st.session_state[f"wi_lim_pct_{_r['sub_strategy_id']}"] = int(round(float(_r['threshold_cum'])*100))
+            st.rerun()
+    with rc2:
+        if st.button("\U0001F4CD  Assume all at current actuals",
+                      key="wi_apply_current", use_container_width=True,
+                      help="No-change scenario: every Strategy stays at its current Amber + Red %."):
+            for _sid, _share in _cur_ar.items():
+                st.session_state[f"wi_lim_pct_{_sid}"] = int(round(_share * 100))
+            st.rerun()
 
-    sim_amber = max(0.0, row["Amber_pct"] - a2g + r2a)
-    sim_red   = max(0.0, row["Red_pct"]   - r2a)
-    sim_green = max(0.0, 1.0 - sim_amber - sim_red)
-    sim_cum   = sim_amber + sim_red
-
-    cur_rb  = row["Red_pct"]   > row["threshold_red"]
-    cur_ab  = row["Amber_pct"] > row["threshold_amber"]
-    cur_cb  = row["cum_pct"]   > row["threshold_cum"]
-    sim_rb  = sim_red   > new_red_thr
-    sim_ab  = sim_amber > new_amber_thr
-    sim_cb  = sim_cum   > new_cum_thr
-
-    cur_util = row["cum_pct"] / row["threshold_cum"] if row["threshold_cum"] > 0 else 0
-    sim_util = sim_cum        / new_cum_thr           if new_cum_thr > 0 else 0
-
-    with col_out:
-        st.subheader("Simulated Outcome")
-        mc1, mc2 = st.columns(2)
-        with mc1:
-            st.markdown("**Current**")
-            st.metric("Red",   fmt_pct(row["Red_pct"]))
-            st.metric("Amber", fmt_pct(row["Amber_pct"]))
-            st.metric("Amber util.", f"{cur_util*100:.0f}%")
-            st.markdown("Breach status")
-            st.error("🔴 Red breach")        if cur_rb else st.success("🔴 Red OK")
-            st.error("🟠 Amber breach")      if cur_ab else st.success("🟠 Amber OK")
-            st.error("⛔ Amber breach") if cur_cb else st.success("✓ Amber OK")
-        with mc2:
-            st.markdown("**Simulated**")
-            st.metric("Red",   fmt_pct(sim_red),
-                       delta=f"{(sim_red-row['Red_pct'])*100:+.1f}%pt", delta_color="inverse")
-            st.metric("Amber", fmt_pct(sim_amber),
-                       delta=f"{(sim_amber-row['Amber_pct'])*100:+.1f}%pt", delta_color="inverse")
-            st.metric("Amber util.", f"{sim_util*100:.0f}%",
-                       delta=f"{(sim_util-cur_util)*100:+.0f}%pt", delta_color="inverse")
-            st.markdown("Breach status")
-            st.error("🔴 Red breach")        if sim_rb else st.success("🔴 Red OK")
-            st.error("🟠 Amber breach")      if sim_ab else st.success("🟠 Amber OK")
-            st.error("⛔ Amber breach") if sim_cb else st.success("✓ Amber OK")
-
-    st.markdown("---")
-    st.markdown('<p class="section-title">Tier Composition: Before vs After</p>', unsafe_allow_html=True)
-    fig_cmp = go.Figure()
-    for tier, cv, sv, color in [
-        ("Green", row["Green_pct"]*100, sim_green*100, "#27ae60"),
-        ("Amber", row["Amber_pct"]*100, sim_amber*100, "#e67e22"),
-        ("Red",   row["Red_pct"]  *100, sim_red  *100, "#e74c3c"),
-    ]:
-        fig_cmp.add_trace(go.Bar(
-            name=tier, x=["Current","Simulated"], y=[cv,sv],
-            marker_color=color, text=[f"{cv:.1f}%",f"{sv:.1f}%"], textposition="auto",
-        ))
-    fig_cmp.add_hline(y=new_cum_thr*100,   line_dash="dot", line_color="#888780",
-                       annotation_text=f"Cum limit {fmt_pct(new_cum_thr)}")
-    fig_cmp.add_hline(y=new_amber_thr*100, line_dash="dot", line_color="#e67e22",
-                       annotation_text=f"Amber limit {fmt_pct(new_amber_thr)}")
-    fig_cmp.add_hline(y=new_red_thr*100,   line_dash="dot", line_color="#e74c3c",
-                       annotation_text=f"Red limit {fmt_pct(new_red_thr)}")
-    fig_cmp.update_layout(**DARK_LAYOUT, barmode="stack", yaxis_title="% of Strategy",
-                           height=350, margin=dict(l=10,r=10,t=30,b=10))
-    st.plotly_chart(fig_cmp, use_container_width=True)
-
-    st.markdown("---")
-    st.markdown('<p class="section-title">Cross-Strategy Sensitivity (each strategy uses its own thresholds)</p>',
+    # ── Per-Strategy limit cards — compact Kanban grid ──────────────────────
+    st.markdown(_section_band("Assumed Amber + Red share per Strategy",
+                              "One card per Strategy. Slider = the Amber + Red share fed into the stress-loss math."),
                 unsafe_allow_html=True)
-    st.caption("Same reclassification deltas applied to every strategy. Thresholds stay at each strategy\'s configured limit.")
 
-    s_rows = []
-    for _, sr in strat_agg.iterrows():
-        s_amber = max(0.0, sr["Amber_pct"] - a2g + r2a)
-        s_red   = max(0.0, sr["Red_pct"]   - r2a)
-        s_cum   = s_amber + s_red
-        s_rb = s_red   > sr["threshold_red"]
-        s_ab = s_amber > sr["threshold_amber"]
-        s_cb = s_cum   > sr["threshold_cum"]
-        s_util = s_cum / sr["threshold_cum"] if sr["threshold_cum"] > 0 else 0
-        flags = []
-        if s_rb: flags.append("R")
-        if s_ab: flags.append("A")
-        if s_cb: flags.append("Cum")
-        s_rows.append({
-            "Strategy":         sr["name"],
-            "Sim Red":          fmt_pct(s_red),
-            "Sim Amber":        fmt_pct(s_amber),
-            "Sim Cum":          fmt_pct(s_cum),
-            "Sim Util":         f"{s_util*100:.0f}%",
-            "Sim Status":       " + ".join(flags) if flags else "OK",
+    # Theme-aware group tints. Light saturated palette pops on dark bg;
+    # darker palette is needed on cream so the text is legible.
+    _theme = st.session_state.get("theme_mode", "cream")
+    if _theme == "dark":
+        _group_tints = {
+            "Equity":         "#60A5FA",
+            "Fixed Income":   "#22D3EE",
+            "Hedge Funds":    "#A78BFA",
+            "Real Estate":    "#FBBF24",
+            "Private Equity": "#F472B6",
+            "Infrastructure": "#4ADE80",
+            "Multi-Asset":    "#94A3B8",
+        }
+    else:
+        _group_tints = {
+            "Equity":         "#1D4ED8",
+            "Fixed Income":   "#0891B2",
+            "Hedge Funds":    "#7C3AED",
+            "Real Estate":    "#B45309",
+            "Private Equity": "#BE185D",
+            "Infrastructure": "#15803D",
+            "Multi-Asset":    "#475569",
+        }
+    sorted_strats = sub_strat_agg.sort_values(
+        ["strategy_name", "sub_strategy_name"]
+    ).reset_index(drop=True)
+
+    proposed_shares = {}                # sub_strategy_id -> assumed Amber + Red fraction
+    cols_per_row = 4
+    n = len(sorted_strats)
+    for i in range(0, n, cols_per_row):
+        cols = st.columns(cols_per_row, gap="small")
+        for j in range(cols_per_row):
+            if i + j >= n:
+                break
+            r = sorted_strats.iloc[i + j]
+            sid             = r["sub_strategy_id"]
+            current_lim_pct = int(round(float(r["threshold_cum"]) * 100))
+            current_actual  = _cur_ar.get(sid, 0.0) * 100
+            tint            = _group_tints.get(r["strategy_name"], "#64748B")
+            # Default slider position: current policy limit
+            default_pct = current_lim_pct
+            with cols[j]:
+                with st.container(border=True):
+                    st.markdown(
+                        f'<div style="padding:4px 6px;">'
+                        f'<div style="font-size:10px;font-weight:800;color:{tint};'
+                        f'text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px;">'
+                        f'{r["strategy_name"]}</div>'
+                        f'<div style="font-size:15px;font-weight:700;color:var(--text-primary);'
+                        f'line-height:1.25;margin-bottom:8px;">{r["sub_strategy_name"]}</div>'
+                        f'<div style="font-size:11px;color:var(--text-subtle);margin-bottom:4px;'
+                        f'padding-top:6px;border-top:1px solid var(--border-default);">'
+                        f'Current Amber + Red: <b style="color:var(--text-primary);">{current_actual:.1f}%</b>'
+                        f'  ·  Policy: <b style="color:var(--text-primary);">{current_lim_pct}%</b>'
+                        f'</div>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+                    new_share_pct = st.slider(
+                        "Assumed Amber + Red %",
+                        min_value=0,
+                        max_value=100,
+                        value=int(default_pct),
+                        step=1,
+                        format="%d%%",
+                        key=f"wi_lim_pct_{sid}",
+                        label_visibility="collapsed",
+                        help=(f"Assumed Amber + Red share for {r['sub_strategy_name']} in this scenario. "
+                              f"Current actual: {current_actual:.1f}%. Policy: {current_lim_pct}%."),
+                    )
+                    proposed_shares[sid] = new_share_pct / 100.0
+
+    # ── Compute simulated stress loss per Strategy ──────────────────────────
+    rows = []
+    for _, r in sub_strat_agg.iterrows():
+        sid = r["sub_strategy_id"]
+        s_inst = inst[inst["sub_strategy_id"] == sid]
+        s_mv = float(s_inst["mv"].sum())
+        if s_mv <= 0:
+            continue
+
+        g_inst  = s_inst[s_inst["tier"] == "Green"]
+        ar_inst = s_inst[s_inst["tier"].isin(["Amber","Red"])]
+        g_mv  = float(g_inst["mv"].sum())
+        ar_mv = float(ar_inst["mv"].sum())
+
+        avg_g  = (g_inst["mv"]  * g_inst["stress_loss_stagflation"]).sum()  / g_mv  if g_mv  > 0 else port_avg_g
+        avg_ar = (ar_inst["mv"] * ar_inst["stress_loss_stagflation"]).sum() / ar_mv if ar_mv > 0 else port_avg_ar
+
+        current_ar_share = ar_mv / s_mv
+        target_ar_share  = max(0.0, min(1.0, proposed_shares.get(sid, float(r["threshold_cum"]))))
+
+        current_loss_per_mv = current_ar_share * avg_ar + (1 - current_ar_share) * avg_g
+        sim_loss_per_mv     = target_ar_share  * avg_ar + (1 - target_ar_share)  * avg_g
+
+        rows.append({
+            "Strategy":         r["sub_strategy_name"],
+            "Strategy Group":   r["strategy_name"],
+            "MV":               s_mv,
+            "current_ar":       current_ar_share,
+            "target_ar":        target_ar_share,
+            "current_loss":     current_loss_per_mv,
+            "sim_loss":         sim_loss_per_mv,
+            "current_contrib":  current_loss_per_mv * s_mv,
+            "sim_contrib":      sim_loss_per_mv     * s_mv,
         })
-    s_disp = pd.DataFrame(s_rows)
-    st.dataframe(s_disp, use_container_width=True)
 
+    sim_df = pd.DataFrame(rows)
+    if sim_df.empty:
+        st.warning("No data to simulate.")
+        return
 
+    sim_baseline_pct = sim_df["current_contrib"].sum() / sim_df["MV"].sum()
+    sim_new_pct      = sim_df["sim_contrib"].sum()     / sim_df["MV"].sum()
+    delta_pct        = sim_new_pct - sim_baseline_pct
 
+    # ── Headline tiles ──────────────────────────────────────────────────────
+    st.markdown(_section_band("Portfolio Stress Loss — Stagflation",
+                              "Bottom-up: each instrument carries its own stress loss; no tier override."),
+                unsafe_allow_html=True)
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# PAGE — Glossary  (Pass 17)
-# ═══════════════════════════════════════════════════════════════════════════════
+    hp1, hp2, hp3 = st.columns(3)
+    with hp1:
+        st.markdown(
+            f'<div style="background:var(--bg-surface);border:1px solid var(--border-default);'
+            f'border-left:4px solid var(--text-muted);border-radius:8px;padding:14px 18px;">'
+            f'<div class="metric-label">Current</div>'
+            f'<div class="kpi-number" style="font-size:32px;color:var(--text-primary);font-weight:800;">'
+            f'{sim_baseline_pct*100:.2f}%</div>'
+            f'<div style="font-size:11px;color:var(--text-subtle);">of portfolio MV (baseline)</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+    with hp2:
+        st.markdown(
+            f'<div style="background:var(--bg-surface);border:1px solid var(--border-default);'
+            f'border-left:4px solid var(--accent);border-radius:8px;padding:14px 18px;">'
+            f'<div class="metric-label">Simulated</div>'
+            f'<div class="kpi-number" style="font-size:32px;color:var(--text-primary);font-weight:800;">'
+            f'{sim_new_pct*100:.2f}%</div>'
+            f'<div style="font-size:11px;color:var(--text-subtle);">of portfolio MV (assumed scenario)</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+    with hp3:
+        worse = delta_pct < 0
+        delta_color = "var(--breach-text)" if worse else "var(--color-ok)"
+        delta_arrow = "\u25BC" if worse else "\u25B2"
+        verdict     = "worse" if worse else ("better" if delta_pct > 0 else "unchanged")
+        st.markdown(
+            f'<div style="background:var(--bg-surface);border:1px solid var(--border-default);'
+            f'border-left:4px solid {delta_color};border-radius:8px;padding:14px 18px;">'
+            f'<div class="metric-label">\u0394 vs current</div>'
+            f'<div class="kpi-number" style="font-size:32px;color:{delta_color};font-weight:800;">'
+            f'{delta_arrow} {abs(delta_pct)*100:.2f}% pts</div>'
+            f'<div style="font-size:11px;color:var(--text-subtle);">{verdict} stress loss</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+    st.caption(
+        "Stress losses are negative (e.g. -13.32% means a 13.32% portfolio loss under the scenario). "
+        "A more negative simulated number = worse outcome."
+    )
+
+    # ── Per-Strategy contribution chart ─────────────────────────────────────
+    st.markdown('<div style="height:18px;"></div>', unsafe_allow_html=True)
+    st.markdown(_section_band("Per-Strategy stress loss",
+                              "Loss as % of Strategy MV. Sorted by absolute delta \u2014 biggest movers at the top."),
+                unsafe_allow_html=True)
+
+    chart_df = sim_df.copy()
+    chart_df["delta"] = chart_df["sim_loss"] - chart_df["current_loss"]
+    chart_df = chart_df.reindex(chart_df["delta"].abs().sort_values(ascending=True).index)
+
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=chart_df["current_loss"] * 100,
+        y=chart_df["Strategy"],
+        orientation="h",
+        name="Current",
+        marker_color="#94A3B8",
+        hovertemplate="<b>%{y}</b><br>Current: %{x:.2f}%<extra></extra>",
+    ))
+    fig.add_trace(go.Bar(
+        x=chart_df["sim_loss"] * 100,
+        y=chart_df["Strategy"],
+        orientation="h",
+        name="Simulated",
+        marker_color="#1D4ED8",
+        hovertemplate="<b>%{y}</b><br>Simulated: %{x:.2f}%<extra></extra>",
+    ))
+    fig.update_layout(
+        **DARK_LAYOUT,
+        barmode="group",
+        height=max(360, 28 * len(chart_df)),
+        margin=dict(l=20, r=20, t=10, b=20),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, **DARK_LEGEND),
+        xaxis_title="<b>Stress loss (% of Strategy MV)</b>",
+    )
+    fig.update_xaxes(tickformat=".1f")
+    st.plotly_chart(fig, use_container_width=True)
+
+    # ── Detail table ────────────────────────────────────────────────────────
+    with st.expander("Detail table", expanded=False):
+        disp = sim_df[["Strategy", "Strategy Group", "current_ar", "target_ar",
+                        "current_loss", "sim_loss"]].copy()
+        disp.columns = ["Strategy", "Strategy Group", "Current Amber + Red share", "Assumed Amber + Red share",
+                        "Current loss %", "Sim loss %"]
+        disp["Current Amber + Red share"] = (disp["Current Amber + Red share"] * 100).round(1).astype(str) + "%"
+        disp["Assumed Amber + Red share"] = (disp["Assumed Amber + Red share"] * 100).round(1).astype(str) + "%"
+        disp["Current loss %"]    = (disp["Current loss %"]    * 100).round(2).astype(str) + "%"
+        disp["Sim loss %"]        = (disp["Sim loss %"]        * 100).round(2).astype(str) + "%"
+        st.dataframe(disp, use_container_width=True, hide_index=True)
+
 
 def page_glossary():
     """Compact reference for every tier, status, threshold and metric used elsewhere."""
@@ -3778,13 +4048,36 @@ def page_glossary():
         html += '</div>'
         st.markdown(html, unsafe_allow_html=True)
 
+    # Single combined Intransparency Tiers card: data-requirements view +
+    # risk-modelling view, one row per tier.
+    _ok_badge = '<span style="color:var(--color-ok);font-weight:800;">✓</span>'
+    _no_badge = '<span style="color:var(--breach-text);font-weight:800;">✗</span>'
+
+    def _tier_row(data_def, name_badge, sys_badge, risk_def):
+        return (
+            f'<div style="margin-bottom:6px;">{data_def}</div>'
+            f'<div style="font-size:12px;color:var(--text-subtle);text-transform:uppercase;'
+            f'letter-spacing:0.08em;font-weight:700;margin-top:4px;">Risk modelling view</div>'
+            f'<div style="margin-top:2px;">Name-level {name_badge} · Systematic {sys_badge} '
+            f'<span style="color:var(--text-soft);">— {risk_def}</span></div>'
+        )
+
     _section_card("Intransparency Tiers", [
         ("Green",
-         "Fully transparent. All Amber and Green data requirements are satisfied."),
+         _tier_row(
+             "Fully transparent. All Amber and Green data requirements are satisfied.",
+             _ok_badge, _ok_badge,
+             "good understanding of both systematic and name-level risk.")),
         ("Amber",
-         "Amber data requirements satisfied; one or more Green requirements missing."),
+         _tier_row(
+             "Amber data requirements satisfied; one or more Green requirements missing.",
+             _no_badge, _ok_badge,
+             "good understanding of systematic risk, but poor understanding of name-level risk.")),
         ("Red",
-         "At least one Amber data requirement missing."),
+         _tier_row(
+             "At least one Amber data requirement missing.",
+             _no_badge, _no_badge,
+             "poor understanding of both systematic and name-level risk.")),
     ])
 
     _section_card("Exposure cards", [
@@ -3814,42 +4107,6 @@ def page_glossary():
          "<b style=\"color:var(--breach-text);\">Low</b> — Green % &lt; 50%."),
     ])
 
-    _section_card("Portfolio hierarchy", [
-        ("Strategy Group",
-         "Top-level container (e.g. Private Equities). Contains one or more Strategies."),
-        ("Strategy",
-         "Where the Red and Amber + Red limits live (e.g. PE Active)."),
-        ("Portfolio",
-         "A managed pool inside a Strategy."),
-        ("Instrument",
-         "A single position. Tier is assigned at this level."),
-    ])
-
-    _section_card("Instrument types", [
-        ("Direct Investment",
-         "Single-name holding managed in-house."),
-        ("Co-investment",
-         "Direct stake in a deal alongside a GP."),
-        ("Fund Investment",
-         "Position in a pooled vehicle managed by an external GP."),
-        ("Mandate",
-         "Segregated mandate run by an external manager."),
-    ])
-
-    _section_card("Data framework", [
-        ("Framework family",
-         "Each instrument is mapped to a family from the stakeholder data-requirements deck (e.g. Listed EQ, Unlisted PE, Macro Fund)."),
-        ("Amber requirements",
-         "Minimum data set for a holding to be Amber."),
-        ("Green requirements",
-         "Additional data needed to elevate the holding to Green."),
-        ("Critical Company Metric",
-         "Satisfied by any one of EBITDA, Leverage (LTV), or Cashflow Coverage (DSCR or ICR)."),
-        ("Missing-field chip",
-         "<span style=\"background:#FCEBEB;color:#791F1F;padding:1px 6px;border-radius:8px;font-size:11px;font-weight:600;\">Red chip</span> = field blocks Amber tier. "
-         "<span style=\"background:#FAEEDA;color:#633806;padding:1px 6px;border-radius:8px;font-size:11px;font-weight:600;\">Amber chip</span> = field blocks Green tier only."),
-    ])
-
     _section_card("Action plan metrics", [
         ("Impact (%)",
          "Drop in this Strategy’s Amber + Red utilisation if the holding is resolved to Green."),
@@ -3861,22 +4118,6 @@ def page_glossary():
          "Per-action % reduction in Amber + Red utilisation."),
         ("Overdue chip",
          "<span style=\"color:var(--alert-text);font-weight:700;\">Amber</span> if &lt; 60 days past target; <span style=\"color:var(--breach-text);font-weight:700;\">red</span> if 60+ days past."),
-    ])
-
-    _section_card("Trend chart", [
-        ("Intransparency view",
-         "Monthly % of portfolio MV in each non-transparent tier."),
-        ("Utilisation view",
-         "Monthly utilisation % against the policy limit. Dashed line at 100% marks the limit."),
-    ])
-
-    _section_card("Other shorthand", [
-        ("MV",
-         "Market Value."),
-        ("Public / Private",
-         "Public = listed / liquid. Private = unlisted / illiquid."),
-        ("AUM-weighted",
-         "Each strategy contribution scaled by its market value."),
     ])
 
     st.markdown(
@@ -3941,7 +4182,7 @@ def main():
 
 
     PAGES = ["Total Portfolio", "Strategy Detail", "Action Tracker",
-             "Data Quality", "What-If Simulator (WIP)", "Glossary"]
+             "Data Quality", "What-If Simulator", "Glossary"]
 
     if "active_page" not in st.session_state:
         st.session_state["active_page"] = "Total Portfolio"
@@ -3986,7 +4227,7 @@ def main():
     elif active == "Strategy Detail":   page_strategy_detail(strat_agg, sub_strat_agg, portfolios_df, instruments_df, history_df, sub_history_df)
     elif active == "Action Tracker":    page_action_tracker(action_items_df, sub_strat_agg, sub_history_df)
     elif active == "Data Quality":      page_data_quality(portfolios_df, instruments_df, audit_df)
-    elif active == "What-If Simulator (WIP)": page_whatif(strat_agg)
+    elif active == "What-If Simulator": page_whatif(sub_strat_agg, instruments_df, portfolios_df)
     elif active == "Glossary":          page_glossary()
 
 if __name__ == "__main__":
