@@ -1,0 +1,17 @@
+# Pass 29.17: restored the [theme] block. Removing it (Pass 29.16) broke
+# local + cream mode because Streamlit fell back to a dark default for
+# the @st.dialog chrome. The light theme here matches our cream palette,
+# and our CSS in _render_theme_css() handles flipping to dark mode when
+# the user toggles. The dialog-scoped variables injected by
+# _render_preview_dialog (Pass 29.16) still cover any Cloud-side
+# CSS-cascade quirks inside the popup card.
+[theme]
+base                     = "light"
+backgroundColor          = "#FFFFFF"
+secondaryBackgroundColor = "#F1F5F9"
+primaryColor             = "#1D4ED8"
+textColor                = "#0F172A"
+font                     = "sans serif"
+
+[server]
+headless = true

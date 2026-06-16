@@ -2780,6 +2780,18 @@ def _render_preview_dialog(row, sub_history_df):
     sub_name = str(row.get("sub_strategy_name") or row.get("name") or "")
     @st.dialog(f"📋  {sub_name}")
     def _dialog():
+        # Pass 29.16: re-inject every theme token scoped to the dialog so the
+        # popup is immune to whatever Streamlit Cloud does to the CSS cascade
+        # inside @st.dialog. Local renders fine because the :root variables
+        # inherit transparently, but on Cloud some elements ignored them and
+        # rendered cream-mode colours mid-dark-mode dashboard.
+        _t = _theme()
+        _scoped_vars = ";".join(f"--{k}: {v}" for k, v in _t.items())
+        st.markdown(
+            f"<style>div[role='dialog'], [data-testid='stDialog'] "
+            f"{{ {_scoped_vars}; }}</style>",
+            unsafe_allow_html=True,
+        )
         # ── Status pill in the header area ──────────────────────────────
         red_u = float(row.get("red_utilisation", 0)) * 100
         cum_u = float(row.get("cum_utilisation", 0)) * 100
