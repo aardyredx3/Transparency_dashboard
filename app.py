@@ -740,6 +740,14 @@ TIER_MIX = {
     "Multi Asset1":           [0.92, 0.07, 0.01],  # under 25% Cum, under 5% Red
 }
 
+# ── Total Portfolio aggregate limits (Pass 24.1) ─────────────────────────
+# Hard-coded policy limits at the TOTAL portfolio level. Used by the two
+# headline exposure cards + the footnote on Total Portfolio. Separate from
+# the per-Strategy thresholds in SUB_STRATEGY_META, which the cockpit
+# widgets and Strategy Detail page use.
+TOTAL_PORTFOLIO_RED_LIMIT = 0.05    # 5% — Red exposure cap on the total portfolio
+TOTAL_PORTFOLIO_CUM_LIMIT = 0.25    # 25% — Amber + Red cumulative cap
+
 # Product / Instrument-Type pools — keyed by Strategy Group name.
 PRODUCT_BY_STRATEGY = {
     "EQ Active":        ["Public"],
@@ -921,6 +929,20 @@ def _load_data_from_excel(filepath):
     _green_pct = (1 - sub_strat_agg["cum_pct"]) * 100
     sub_strat_agg["transparency_rating"] = _green_pct.apply(_rating)
     sub_strat_agg["green_pct"]           = _green_pct.round(1)
+
+    # Pass 24: top missing-field tags per Strategy. Tally missing fields across
+    # all instruments in each Strategy and surface the top 4 most-frequent names
+    # in the cockpit widget as "key drivers" of intransparency. Falls back to
+    # the empty list when a Strategy has no missing fields.
+    from collections import Counter as _Counter
+    def _top_missing(sid):
+        s = instruments_df[instruments_df["sub_strategy_id"] == sid]
+        c = _Counter()
+        for lst in s["missing_fields_list"]:
+            if isinstance(lst, list):
+                c.update(lst)
+        return [n for n, _ in c.most_common(4)]
+    sub_strat_agg["top_missing_fields"] = sub_strat_agg["sub_strategy_id"].apply(_top_missing)
 
     # Pass 17.18: count months in the past 12 where each Strategy crossed
     # either its Red or Amber + Red limit. Reads sub_history_df + the
@@ -1419,6 +1441,17 @@ def generate_all_data(_tier_mix_sig: str = ""):
     sub_strat_agg["transparency_rating"] = _green_pct.apply(_rating)
     sub_strat_agg["green_pct"]           = _green_pct.round(1)
 
+    # Pass 24: top missing-field tags per Strategy (Excel-loader path).
+    from collections import Counter as _Counter
+    def _top_missing_xl(sid):
+        s = instruments_df[instruments_df["sub_strategy_id"] == sid]
+        c = _Counter()
+        for lst in s["missing_fields_list"]:
+            if isinstance(lst, list):
+                c.update(lst)
+        return [n for n, _ in c.most_common(4)]
+    sub_strat_agg["top_missing_fields"] = sub_strat_agg["sub_strategy_id"].apply(_top_missing_xl)
+
     # Pass 17.18: count months in the past 12 where each Strategy crossed
     # either its Red or Amber + Red limit. Reads sub_history_df + the
     # thresholds already on sub_strat_agg. Defaults to 0 when no history.
@@ -1573,6 +1606,29 @@ def _status_dot(any_breach):
     return '<div style="width:8px;height:8px;border-radius:50%;background:var(--color-ok);margin-left:5px;"></div>'
 
 
+# Pass 24.2: deterministic color palette for the cockpit "Key drivers" chips.
+# Each distinct field name (e.g. "Company Name", "Critical Company Metric") gets
+# its own color so the user can spot the same driver across multiple Strategies.
+# Palette deliberately excludes greens/ambers/reds so it doesn't clash with the
+# tier colour code.
+TAG_PALETTE = [
+    "#4F46E5",   # indigo
+    "#9333EA",   # purple
+    "#DB2777",   # pink
+    "#0284C7",   # sky blue
+    "#92400E",   # warm brown
+    "#475569",   # slate
+    "#BE185D",   # rose
+]
+def _tag_color(name: str) -> str:
+    """Deterministic color for a given field-name string. Uses MD5 to get an
+    even spread across the palette (a naive sum-of-ords clustered too many
+    field names onto the same hue)."""
+    import hashlib as _hashlib
+    h = int(_hashlib.md5(str(name).encode("utf-8")).hexdigest(), 16)
+    return TAG_PALETTE[h % len(TAG_PALETTE)]
+
+
 def _cockpit_widget_html(row, expanded=True, show_investigate=True):
     """Cockpit widget. The entire card is a single clickable link that drills
     through to Strategy Detail (when show_investigate=True). All info is shown
@@ -1621,48 +1677,16 @@ def _cockpit_widget_html(row, expanded=True, show_investigate=True):
             f'</div>'
         )
 
-    rating_badge = _rating_badge(str(row.get("transparency_rating", "")), row.get("green_pct"))
-    reason_chip  = _reason_chip(str(row.get("breach_reason", "")))
-    # Computed outside the f-string so we don't smuggle a backslash through the
-    # expression part of an f-string (Python 3.10 disallows that).
-    _rating_disp = str(row.get("transparency_rating") or "—")
-    # Pass 14 (item 2): bold + colour the H/M/L word for at-a-glance scanning
-    _rating_color = {"High": "var(--color-ok)",
-                     "Medium": "var(--color-alert)",
-                     "Low": "var(--breach-text)"}.get(_rating_disp, "var(--text-primary)")
-    _rating_html = (f'<b style="color:{_rating_color};">{_rating_disp}</b>'
-                    if _rating_disp != "—" else _rating_disp)
-
-    # Compose the always-shown inner body (header + util rows + explainer + driver)
-    inner = (
-        # Header: name + rating badge | status dot + Limit pill
-        f'<div style="display:flex;justify-content:space-between;align-items:center;">'
-        f'<div style="font-size:14.5px;font-weight:600;color:var(--text-primary);line-height:1.3;min-width:0;flex:1 1 auto;">{row["name"]}</div>'
-        f'<div style="display:flex;align-items:center;gap:5px;flex-shrink:0;margin-left:8px;">'
-        f'<div style="width:8px;height:8px;border-radius:50%;background:{light_color};"></div>'
-        f'<span title="Limit status: BREACH = utilisation > 100%, ALERT = 80 to 100%, OK = < 80%. Measures policy compliance against this Strategy\'s own Red and Amber limits." '
-        f'style="font-size:11.5px;color:{pill_color};font-weight:600;letter-spacing:0.04em;cursor:help;">{pill_text}</span>'
-        f'</div></div>'
-        # Util rows + explainer + driver chip
-        f'<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border-default);">'
-        f'{_row("Red util %",   red_util, float(row.get("Red_pct", 0))*100, float(row.get("threshold_red", 0))*100)}'
-        f'{_row("Amber + Red util %", cum_util, float(row.get("cum_pct", 0))*100, float(row.get("threshold_cum", 0))*100)}'
-        # Pass 17.18: Rating moved INTO the metric box as a third row.
-        # Value is the H/M/L word coloured; hover the word for the Green %.
-        f'<div style="display:flex;justify-content:space-between;align-items:baseline;font-size:14px;padding:5px 0;">'
-        f'<span style="color:var(--text-muted);">Rating</span>'
-        f'<span title="Green %: {float(row.get("green_pct", 0)):.0f}%" '
-        f'style="font-size:14px;font-weight:700;color:{_rating_color};cursor:help;">{_rating_disp}</span>'
-        f'</div>'
-        # Footer chip: months in breach over the last 12 months
-        f'<div style="margin-top:8px;padding-top:6px;border-top:1px dashed var(--border-default);font-size:12px;color:var(--text-muted);line-height:1.45;">'
-        f'No. of breaches past 1 year: <b style="color:var(--text-primary);">{int(row.get("breaches_last_12mo", 0))}</b>'
-        f'</div>'
-        f'</div>'
-    )
-
-    container_style = (f'background:var(--bg-surface);border:{border_width} solid {border_color};'
-                       f'border-radius:8px;padding:10px 12px;')
+    # Pass 24.5: container styling adapts to expanded state.
+    #  expanded   → min-height:230px + flex column (so the breach footer docks to the bottom)
+    #  collapsed  → tight padding, no min-height, so all 16 cards fit above the fold
+    if expanded:
+        container_style = (f'background:var(--bg-surface);border:{border_width} solid {border_color};'
+                           f'border-radius:8px;padding:10px 12px;'
+                           f'display:flex;flex-direction:column;min-height:230px;')
+    else:
+        container_style = (f'background:var(--bg-surface);border:{border_width} solid {border_color};'
+                           f'border-radius:8px;padding:8px 12px;')
 
     # Header row — always visible (name + status pill). The body (util rows +
     # footer + driver chip) is shown only when `expanded` is True, so the
@@ -1680,23 +1704,46 @@ def _cockpit_widget_html(row, expanded=True, show_investigate=True):
         f'style="font-size:11.5px;color:{pill_color};font-weight:800;letter-spacing:0.06em;cursor:help;">{pill_text}</span>'
         f'</div></div>'
     )
-    body = ((
-        f'<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border-default);">'
-        f'{_row("Red util %",   red_util, float(row.get("Red_pct", 0))*100, float(row.get("threshold_red", 0))*100)}'
-        f'{_row("Amber + Red util %", cum_util, float(row.get("cum_pct", 0))*100, float(row.get("threshold_cum", 0))*100)}'
-        # Pass 17.18: Rating moved INTO the metric box as a third row.
-        # Value is the H/M/L word coloured; hover the word for the Green %.
-        f'<div style="display:flex;justify-content:space-between;align-items:baseline;font-size:14px;padding:5px 0;">'
-        f'<span style="color:var(--text-muted);">Rating</span>'
-        f'<span title="Green %: {float(row.get("green_pct", 0)):.0f}%" '
-        f'style="font-size:14px;font-weight:700;color:{_rating_color};cursor:help;">{_rating_disp}</span>'
-        f'</div>'
-        # Footer chip: months in breach over the last 12 months
-        f'<div style="margin-top:8px;padding-top:6px;border-top:1px dashed var(--border-default);font-size:12px;color:var(--text-muted);line-height:1.45;">'
-        f'No. of breaches past 1 year: <b style="color:var(--text-primary);">{int(row.get("breaches_last_12mo", 0))}</b>'
-        f'</div>'
-        f'</div>'
-    ) if expanded else "")
+    # Pass 24: build the "Key drivers" chip block from per-Strategy top missing
+    # fields. Outlined-teal chip style consistent with the Action Plans missing-
+    # field chips so the visual language matches across the dashboard.
+    _tags = row.get("top_missing_fields", []) or []
+    if isinstance(_tags, list) and len(_tags) > 0:
+        _chips = "".join(
+            f'<span style="display:inline-block;border:1px solid {_tag_color(t)};color:{_tag_color(t)};'
+            f'background:transparent;padding:2px 8px;border-radius:10px;font-size:11px;'
+            f'font-weight:600;margin:0 4px 4px 0;white-space:nowrap;">{t}</span>'
+            for t in _tags[:3]
+        )
+        _drivers_block = (
+            f'<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border-default);">'
+            f'<div>{_chips}</div>'
+            f'</div>'
+        )
+    else:
+        _drivers_block = (
+            f'<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border-default);">'
+            f'<div style="font-size:12px;color:var(--text-subtle);font-style:italic;">No transparency gaps</div>'
+            f'</div>'
+        )
+
+    if expanded:
+        # Full body: util rows + Key drivers chips + breach footer (docked to bottom).
+        body = (
+            f'<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border-default);'
+            f'flex:1;display:flex;flex-direction:column;">'
+            f'{_row("Red util %",   red_util, float(row.get("Red_pct", 0))*100, float(row.get("threshold_red", 0))*100)}'
+            f'{_row("Amber + Red util %", cum_util, float(row.get("cum_pct", 0))*100, float(row.get("threshold_cum", 0))*100)}'
+            f'{_drivers_block}'
+            f'<div style="margin-top:auto;padding-top:6px;border-top:1px dashed var(--border-default);font-size:12px;color:var(--text-muted);line-height:1.45;">'
+            f'No. of breaches past 1 year: <b style="color:var(--text-primary);">{int(row.get("breaches_last_12mo", 0))}</b>'
+            f'</div>'
+            f'</div>'
+        )
+    else:
+        # Pass 24.5b: collapsed view shows just the header (name + status pill).
+        # The status pill alone (OK / ALERT / BREACH) is enough for triage.
+        body = ""
     inner = header + body
 
     if show_investigate:
@@ -1938,13 +1985,14 @@ def _section_band(title, subtitle=""):
 
 
 def _ai_observations_html(strat_agg, sub_strat_agg, portfolios_df, history_df, sub_history_df, instruments_df):
-    """A.I. Observations: auto-generated natural-language commentary derived from
-    the underlying data. Picks out month-over-month deltas, top improvers and
-    detractors, active breach drivers, and the biggest single data-gap leverage
-    opportunity. Pure template generation against measured numbers."""
-    sections = []
+    """A.I. Observations (Pass 24.3). Two buckets: always-visible (Portfolio
+    overview + Top contributors — sized to match the stacked exposure cards
+    on the left) and collapsed (Watch list + Active breaches + Biggest
+    leverage opportunity — behind a chevron summary). Top improvers removed."""
+    always_sections = []
+    more_sections   = []
 
-    # ── Portfolio-level MoM (AUM-weighted non-transparent %) ─────────────────
+    # ── Portfolio overview (always-visible) ──────────────────────────────────
     if history_df is not None and len(history_df) and "date" in history_df.columns:
         def _aw(g):
             mv = g["mv"].sum()
@@ -1957,37 +2005,28 @@ def _ai_observations_html(strat_agg, sub_strat_agg, portfolios_df, history_df, s
             delta = cur - prev
             cur_green = 100 - cur
             if abs(delta) < 0.05:
-                direction = "held steady"
-                arrow_color = "var(--text-muted)"
-                arrow = "\u2192"
+                direction, arrow_color, arrow = "held steady", "var(--text-muted)", "\u2192"
             elif delta < 0:
-                direction = "improved"
-                arrow_color = "var(--color-ok)"
-                arrow = "\u25BC"
+                direction, arrow_color, arrow = "improved", "var(--color-ok)", "\u25BC"
             else:
-                direction = "worsened"
-                arrow_color = "var(--breach-text)"
-                arrow = "\u25B2"
-            # Pass 17.14: separate phrasing for "held steady" (no delta to read out)
+                direction, arrow_color, arrow = "worsened", "var(--breach-text)", "\u25B2"
             if direction == "held steady":
-                lead = (f'Intransparency exposure held steady month-over-month \u2014 currently '
-                        f'<span class="kpi-number">{cur:.1f}%</span> of AUM-weighted exposure '
-                        f'(vs <span class="kpi-number">{prev:.1f}%</span> last month). ')
+                lead = (f'Intransparency exposure held steady month-over-month '
+                        f'(<span class="kpi-number">{cur:.1f}%</span> vs <span class="kpi-number">{prev:.1f}%</span> last month).')
             else:
                 lead = (f'Intransparency exposure {direction} by '
                         f'<span class="kpi-number" style="color:{arrow_color};font-size:15px;">{arrow} {abs(delta):.2f}%</span>'
-                        f' month-over-month \u2014 currently <span class="kpi-number">{cur:.1f}%</span> of AUM-weighted exposure '
-                        f'(vs <span class="kpi-number">{prev:.1f}%</span> last month). ')
-            sections.append(
-                f'<div style="margin-bottom:14px;">'
-                f'<div class="metric-label" style="margin-bottom:4px;">Portfolio overview</div>'
+                        f' month-over-month (<span class="kpi-number">{cur:.1f}%</span> vs '
+                        f'<span class="kpi-number">{prev:.1f}%</span> last month).')
+            always_sections.append(
+                f'<div style="margin-bottom:6px;">'
+                f'<div class="metric-label" style="margin-bottom:2px;">Portfolio overview</div>'
                 f'<div style="font-size:14px;color:var(--text-soft);line-height:1.6;">'
                 f'{lead}'
-                f'Transparent (Green) share is now <b style="color:var(--color-ok);">{cur_green:.1f}%</b>.'
                 f'</div></div>'
             )
 
-    # ── Per-strategy MoM deltas ──────────────────────────────────────────────
+    # ── Per-strategy detractors → Watch list (collapsed) ─────────────────────
     if sub_history_df is not None and len(sub_history_df) and "date" in sub_history_df.columns:
         dates = sorted(sub_history_df["date"].unique())
         if len(dates) >= 2:
@@ -1996,43 +2035,21 @@ def _ai_observations_html(strat_agg, sub_strat_agg, portfolios_df, history_df, s
             prev_s = sub_history_df[sub_history_df["date"] == prev_d].set_index("sub_strategy_id")["non_transparent_pct"]
             strat_delta = ((cur_s - prev_s) * 100).dropna().sort_values()
             name_map = dict(zip(sub_strat_agg["sub_strategy_id"], sub_strat_agg["sub_strategy_name"]))
-
-            # Improvers — most negative delta (intransparency dropped = green grew)
-            improvers = strat_delta.head(2)
-            ipart = []
-            for sid, d in improvers.items():
-                if d < -0.05:
-                    ipart.append(f'<b>{name_map.get(sid, sid)}</b> (<span class="kpi-number" style="color:var(--color-ok);">{d:+.2f}%</span>)')
-            if ipart:
-                sections.append(
-                    f'<div style="margin-bottom:14px;">'
-                    f'<div class="metric-label" style="margin-bottom:4px;color:var(--color-ok);">Top improvers</div>'
-                    f'<div style="font-size:14px;color:var(--text-soft);line-height:1.6;">'
-                    f'Largest transparency gains came from {", ".join(ipart)}. '
-                    f'Typical drivers at this scale: manager reporting refresh, look-through agreement renewals, or older non-transparent holdings rolling off.'
-                    f'</div></div>'
-                )
-
-            # Detractors — most positive delta (intransparency grew)
             detractors = strat_delta.tail(2).iloc[::-1]
             dpart = []
             for sid, d in detractors.items():
                 if d > 0.05:
                     dpart.append(f'<b>{name_map.get(sid, sid)}</b> (<span class="kpi-number" style="color:var(--breach-text);">{d:+.2f}%</span>)')
             if dpart:
-                sections.append(
-                    f'<div style="margin-bottom:14px;">'
-                    f'<div class="metric-label" style="margin-bottom:4px;color:var(--breach-text);">Watch list</div>'
+                more_sections.append(
+                    f'<div style="margin-bottom:6px;">'
+                    f'<div class="metric-label" style="margin-bottom:2px;color:var(--breach-text);">Watch list</div>'
                     f'<div style="font-size:14px;color:var(--text-soft);line-height:1.6;">'
-                    f'Transparency deteriorated most in {", ".join(dpart)}. '
-                    f'Common causes: new positions awaiting their first NAV cycle, GP reporting delays, or missing field accruals on additions.'
+                    f'Transparency deteriorated most in {", ".join(dpart)}.'
                     f'</div></div>'
                 )
 
-    # ── Top contributors to current Amber + Red exposure ────────────────────
-    # Pass 16 + 17.3: ranks the leaf STRATEGIES (sub_strategy_name) driving today's
-    # intransparency, in % of portfolio MV. Matches the Exposure Breakdown
-    # "Cut by Strategy" rows 1:1 (when its focus is set to Amber+Red).
+    # ── Top contributors (always-visible) ────────────────────────────────────
     ar_inst = portfolios_df[portfolios_df["tier"].isin(["Amber","Red"])]
     if len(ar_inst):
         _tot_mv  = float(portfolios_df["mv"].sum())
@@ -2045,49 +2062,40 @@ def _ai_observations_html(strat_agg, sub_strat_agg, portfolios_df, history_df, s
                 for name, v in _top.items() if v > 0.005
             ]
             if _bits:
-                sections.append(
-                    f'<div style="margin-bottom:14px;">'
-                    f'<div class="metric-label" style="margin-bottom:4px;color:var(--breach-text);">Top contributors</div>'
+                always_sections.append(
+                    f'<div style="margin-bottom:6px;">'
+                    f'<div class="metric-label" style="margin-bottom:2px;color:var(--breach-text);">Top contributors</div>'
                     f'<div style="font-size:14px;color:var(--text-soft);line-height:1.6;">'
                     f'The biggest drivers of current Amber + Red exposure are '
-                    f'{", ".join(_bits)} — measured as each Strategy\u2019s share of total portfolio MV.'
+                    f'{", ".join(_bits)}.'
                     f'</div></div>'
                 )
 
-    # ── Active breaches + drivers ────────────────────────────────────────────
-    # Pass 17.17: name the SPECIFIC limit each strategy is breaching (Red, Amber + Red,
-    # or both) and include the actual utilisation %. Red is mentioned first when both
-    # are breaching since Red is the more severe tier.
+    # ── Active breaches + drivers (collapsed) ────────────────────────────────
     breaching = sub_strat_agg[sub_strat_agg["any_breach"]]
     if len(breaching) > 0:
         names = breaching["sub_strategy_name"].tolist()
-        body = (
-            f'<b>{len(breaching)}</b> {"strategy is" if len(breaching)==1 else "strategies are"} currently '
-            f'in breach: ' + ", ".join(f'<b>{n}</b>' for n in names) + '. '
+        body_b = (
+            f'<b>{len(breaching)}</b> {"strategy" if len(breaching)==1 else "strategies"} in breach: '
+            + ", ".join(f'<b>{n}</b>' for n in names) + '.'
         )
         for _, r in breaching.iterrows():
-            # Build a per-strategy clause listing which limit(s) are breached.
             bits = []
             if bool(r.get("red_breach")):
-                bits.append(f'<b>Red limit</b> ({float(r["red_utilisation"])*100:.0f}% utilisation)')
+                bits.append(f'Red limit ({float(r["red_utilisation"])*100:.0f}%)')
             if bool(r.get("cum_breach")):
-                bits.append(f'<b>Amber + Red limit</b> ({float(r["cum_utilisation"])*100:.0f}% utilisation)')
+                bits.append(f'Amber + Red limit ({float(r["cum_utilisation"])*100:.0f}%)')
             limits_clause = " and ".join(bits) if bits else "limit"
-            body += (
-                f'<br/><b>{r["sub_strategy_name"]}</b> is breaching the {limits_clause}.'
-            )
+            body_b += f'<br/><b>{r["sub_strategy_name"]}</b>: {limits_clause}.'
             if r.get("breach_reason"):
-                body += (
-                    f' Primary driver: <i>{r["breach_reason"]}</i>; '
-                    f'recommended action: <i>{r.get("suggested_action") or "see Action Plans"}</i>.'
-                )
-        sections.append(
-            f'<div style="margin-bottom:14px;">'
-            f'<div class="metric-label" style="margin-bottom:4px;color:var(--breach-text);">Active breaches</div>'
-            f'<div style="font-size:14px;color:var(--text-soft);line-height:1.6;">{body}</div></div>'
+                body_b += f' Driver: <i>{r["breach_reason"]}</i>.'
+        more_sections.append(
+            f'<div style="margin-bottom:6px;">'
+            f'<div class="metric-label" style="margin-bottom:2px;color:var(--breach-text);">Active breaches</div>'
+            f'<div style="font-size:14px;color:var(--text-soft);line-height:1.6;">{body_b}</div></div>'
         )
 
-    # ── Biggest data-gap leverage opportunity ────────────────────────────────
+    # ── Biggest leverage opportunity (collapsed) ─────────────────────────────
     ar = instruments_df[instruments_df["tier"].isin(["Amber","Red"])]
     if len(ar):
         field_counts = {}
@@ -2096,59 +2104,68 @@ def _ai_observations_html(strat_agg, sub_strat_agg, portfolios_df, history_df, s
                 field_counts[f] = field_counts.get(f, 0) + 1
         if field_counts:
             top_field, top_n = max(field_counts.items(), key=lambda kv: kv[1])
-            # Pass 17.17: quantify portfolio-level impact (MV of affected instruments / total portfolio MV)
             _tot_port_mv = float(instruments_df["mv"].sum())
             _affected_mv = float(ar[ar["missing_fields_list"].apply(
                 lambda lst: top_field in (lst or []))]["mv"].sum())
             _impact_pct = (_affected_mv / _tot_port_mv * 100) if _tot_port_mv > 0 else 0.0
-            sections.append(
+            more_sections.append(
                 f'<div style="margin-bottom:0;">'
-                f'<div class="metric-label" style="margin-bottom:4px;color:var(--accent);">Biggest leverage opportunity</div>'
+                f'<div class="metric-label" style="margin-bottom:2px;color:var(--accent);">Biggest leverage opportunity</div>'
                 f'<div style="font-size:14px;color:var(--text-soft);line-height:1.6;">'
-                f'<b>{top_field}</b> is the most widespread data gap \u2014 missing on '
-                f'<span class="kpi-number">{top_n}</span> instruments. '
-                f'Resolving it across all affected holdings could reduce the total portfolio\'s Amber + Red exposure by up to '
+                f'<b>{top_field}</b> \u2014 missing on <span class="kpi-number">{top_n}</span> instruments. '
+                f'Resolving it could reduce Amber + Red exposure by up to '
                 f'<b style="color:var(--accent);"><span class="kpi-number">{_impact_pct:.2f}%</span></b>.'
                 f'</div></div>'
             )
 
-    body = "".join(sections) if sections else (
-        '<div style="font-size:14px;color:var(--text-muted);">No notable observations this period.</div>'
-    )
+    # ── Build body: always-visible + collapsed details wrapper ───────────────
+    if not always_sections and not more_sections:
+        body = '<div style="font-size:14px;color:var(--text-muted);">No notable observations this period.</div>'
+    else:
+        body = "".join(always_sections)
+        if more_sections:
+            more_count = len(more_sections)
+            tooltip = f"Show {more_count} more observation" + ("" if more_count == 1 else "s")
+            body += (
+                # Tight chevron: tiny font + line-height:0 so the row collapses
+                # to nearly zero height. Negative margin on the inner div pulls
+                # the next section up to sit flush with the chevron.
+                f'<details class="ai-more" style="margin:0;padding:0;">'
+                f'<summary title="{tooltip}" style="cursor:pointer;list-style:none;'
+                f'color:var(--accent);user-select:none;display:inline-flex;align-items:center;'
+                f'margin:0;padding:0;font-size:12px;line-height:0;height:14px;">'
+                f'<span class="ai-chevron" style="display:inline-block;transition:transform 0.18s ease;font-weight:700;">\u25B8</span>'
+                f'</summary>'
+                f'<div style="margin-top:-2px;">{"".join(more_sections)}</div>'
+                f'</details>'
+            )
 
     return (
         f'<div style="background:var(--bg-surface);'
         f'border:1px solid var(--border-default);border-left:4px solid var(--accent);'
-        f'border-radius:8px;padding:18px 22px;margin-bottom:24px;">'
-        f'<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">'
+        f'border-radius:8px;padding:14px 20px;margin-bottom:24px;'
+        f'display:flex;flex-direction:column;min-height:215px;height:100%;'
+        f'box-sizing:border-box;">'
+        f'<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">'
         f'<div style="font-size:11px;font-weight:800;color:var(--accent);letter-spacing:0.14em;text-transform:uppercase;">A.I. Observations</div>'
         f'<div style="background:var(--accent);color:#FFFFFF;font-size:9px;font-weight:700;padding:2px 7px;border-radius:8px;letter-spacing:0.06em;">AUTO</div>'
         f'<div style="flex:1;height:1px;background:var(--border-default);"></div>'
         f'<div style="font-size:11px;color:var(--text-subtle);">Generated from current data</div>'
         f'</div>'
+        f'<style>'
+        f'details.ai-more > summary::-webkit-details-marker {{ display:none; }}'
+        f'details.ai-more[open] > summary .ai-chevron {{ transform: rotate(90deg); }}'
+        f'</style>'
         f'{body}'
         f'</div>'
     )
 
 
-
 def page_portfolio_overview(strat_agg, sub_strat_agg, portfolios_df, history_df, sub_history_df, instruments_df):
-    st.title("Intransparency Monitoring Dashboard")
+    _render_page_title("Intransparency Monitoring Dashboard", show_stats=True)
     st.markdown(
         '<p style="font-size:14px;color:var(--text-muted);font-weight:500;letter-spacing:0.01em;margin-top:-12px;margin-bottom:18px;">'
         'Direct Investments, Co-investments and Fund Investments</p>',
-        unsafe_allow_html=True,
-    )
-    st.markdown(
-        '<details style="margin:-8px 0 18px 0;">'
-        '<summary style="cursor:pointer;color:var(--accent);font-size:12px;font-weight:500;display:inline-block;">Why this matters</summary>'
-        '<div style="font-size:12px;color:var(--text-muted);margin-top:6px;line-height:1.55;max-width:900px;">'
-        'Intransparency affects three downstream workflows: '
-        '<b>portfolio monitoring</b> (limited drill-through to underlying risk drivers), '
-        '<b>risk modelling</b> (gaps in look-through for factor and scenario analysis), and '
-        '<b>rebalancing</b> (delayed visibility on new holdings before they can be sized).'
-        '</div>'
-        '</details>',
         unsafe_allow_html=True,
     )
 
@@ -2191,11 +2208,12 @@ def page_portfolio_overview(strat_agg, sub_strat_agg, portfolios_df, history_df,
     n_breaches   = int(df["any_breach"].sum())
     breach_names = df[df["any_breach"]]["name"].tolist()
 
-    # AUM-weighted total-portfolio thresholds
+    # Total-portfolio thresholds — policy limits set at the portfolio level
+    # (Pass 24.1). Hard-coded via TOTAL_PORTFOLIO_RED_LIMIT / TOTAL_PORTFOLIO_CUM_LIMIT.
     if total_mv > 0:
-        thr_amber_tot = (df["threshold_amber"] * df["total_mv"]).sum() / total_mv
-        thr_red_tot   = (df["threshold_red"]   * df["total_mv"]).sum() / total_mv
-        thr_cum_tot   = (df["threshold_cum"]   * df["total_mv"]).sum() / total_mv
+        thr_red_tot   = TOTAL_PORTFOLIO_RED_LIMIT
+        thr_cum_tot   = TOTAL_PORTFOLIO_CUM_LIMIT
+        thr_amber_tot = max(0.0, thr_cum_tot - thr_red_tot)   # derived
     else:
         thr_amber_tot = thr_red_tot = thr_cum_tot = 0.0
 
@@ -2235,20 +2253,17 @@ def page_portfolio_overview(strat_agg, sub_strat_agg, portfolios_df, history_df,
     st.markdown(_section_band("Total Portfolio – Intransparency Limits Utilisation"), unsafe_allow_html=True)
 
     # ── Portfolio transparency context (now below the section band) ──────────
-    # Reordered per user request: limit-utilisation line first, transparency
-    # composition second, "Why this matters" last.
+    # Limit-utilisation line first, transparency composition second.
     _tot_mv = float(portfolios_df["mv"].sum())
     if _tot_mv > 0:
         _w_cum_pct  = float((portfolios_df["tier"].isin(["Amber", "Red"]).astype(int) * portfolios_df["mv"]).sum()) / _tot_mv * 100
         _w_green_pct = 100 - _w_cum_pct
-        _strat_mv  = portfolios_df.groupby("strategy_id")["mv"].sum()
-        _strat_thr = strat_agg.set_index("strategy_id")["threshold_cum"]
-        _thr_cum_tot = float((_strat_mv * _strat_thr).sum() / _strat_mv.sum()) if _strat_mv.sum() > 0 else 0.0
+        # Pass 24.1: use the same hard-coded portfolio limit the cards use
+        _thr_cum_tot = TOTAL_PORTFOLIO_CUM_LIMIT
         _util_total = (_w_cum_pct / 100) / _thr_cum_tot if _thr_cum_tot > 0 else 0
         _rt_status = "within risk tolerance" if _util_total <= 1.0 else "above risk tolerance"
         _rt_color  = "var(--color-ok)" if _util_total <= 1.0 else "var(--color-red-fill)"
-        # Plain footnote treatment under the section band. "Why this matters"
-        # was moved to the top of the page (under the page subtitle).
+        # Plain footnote treatment under the section band.
         st.markdown(
             f'<div style="font-size:14px;color:var(--text-soft);line-height:1.6;margin:-8px 0 14px 0;padding-left:15px;">'
             f'Total intransparency at <b style="color:var(--text-primary);">{_util_total*100:.0f}%</b> of the portfolio limit \u2014 '
@@ -2259,32 +2274,31 @@ def page_portfolio_overview(strat_agg, sub_strat_agg, portfolios_df, history_df,
             unsafe_allow_html=True,
         )
 
-    # ── Section A: Total portfolio exposure cards (clickable drill-through) ──
+    # ── Section A: Exposure cards (left, stacked) + A.I. Observations (right) ──
+    # Pass 24: users found the wide elongated exposure cards too dominant.
+    # Stack Red + Amber + Red on the left, put A.I. Observations on the right.
     card_specs = [
         ("Red exposure",   util_red_tot, w_red*100, thr_red_tot*100, "#e74c3c", t_red_breach, "Red"),
         ("Amber + Red exposure", util_cum_tot, w_cum*100, thr_cum_tot*100, "#e67e22", t_cum_breach, "Amber"),
     ]
-    # Carry the current panel state in the card link so the full-page reload it
-    # triggers doesn't reset the Strategy status panel back to expanded.
     exp_q = "1" if st.session_state["widgets_expanded"] else "0"
-    cards_html = '<div style="display:grid;grid-template-columns:repeat(2, 1fr);gap:12px;margin-bottom:20px;">'
-    for (lbl, util, val, thr, color, breach, tier_key) in card_specs:
-        cards_html += _total_exposure_card_html(
-            lbl, util, val, thr, color, breach,
-            href=f"?focus={tier_key}&exp={exp_q}{_theme_qs()}#tp-details",
-            tooltip=TIER_TOOLTIPS.get(tier_key),
-        )
-    cards_html += '</div>'
-    st.markdown(cards_html, unsafe_allow_html=True)
 
-    # ── A.I. Observations panel (Pass 9) ──────────────────────────────────────
-    # Auto-generated commentary from the underlying numbers: MoM portfolio delta,
-    # biggest improvers/detractors, breach drivers, and the biggest data-gap
-    # leverage point. Replaces the older Top Contributors bar chart, which was
-    # duplicating info available in the Exposure Breakdown panel.
-    st.markdown(_ai_observations_html(strat_agg, sub_strat_agg, portfolios_df,
-                                       history_df, sub_history_df, instruments_df),
-                unsafe_allow_html=True)
+    _expo_col, _ai_col = st.columns([1, 1], gap="small")
+    with _expo_col:
+        stacked_html = '<div style="display:flex;flex-direction:column;gap:12px;">'
+        for (lbl, util, val, thr, color, breach, tier_key) in card_specs:
+            stacked_html += _total_exposure_card_html(
+                lbl, util, val, thr, color, breach,
+                href=f"?focus={tier_key}&exp={exp_q}{_theme_qs()}#tp-details",
+                tooltip=TIER_TOOLTIPS.get(tier_key),
+            )
+        stacked_html += '</div>'
+        st.markdown(stacked_html, unsafe_allow_html=True)
+
+    with _ai_col:
+        st.markdown(_ai_observations_html(strat_agg, sub_strat_agg, portfolios_df,
+                                           history_df, sub_history_df, instruments_df),
+                    unsafe_allow_html=True)
 
     st.markdown(_section_band("Active Strategies – Intransparency Limits Utilisation", "Each Strategy's utilisation against its own limits."), unsafe_allow_html=True)
     st.markdown(
@@ -2640,7 +2654,7 @@ def page_strategy_detail(strat_agg, sub_strat_agg, portfolios_df, instruments_df
     sd_focus = st.session_state["sd_focus_tier"]
 
     # ── Title + status subtitle ─────────────────────────────────────────────
-    st.title(f"Strategy Group · {sel}")
+    _render_page_title(f"Strategy Group · {sel}")
     if n_breach == 0:
         status_html = f'<span style="color:var(--color-ok);">All {n_child} strateg{"y" if n_child==1 else "ies"} within tolerance.</span>'
     else:
@@ -3467,7 +3481,7 @@ def _most_improved_widget(sub_history_df, sub_strat_agg):
 
 
 def page_action_tracker(action_items_df, sub_strat_agg, sub_history_df):
-    st.title("\U0001F3AF Action Tracker")
+    _render_page_title("\U0001F3AF Action Tracker")
     st.caption("Transparency improvement workflow — initiatives owned by asset-department leads, with status and timelines.")
 
     # ── Filters ──────────────────────────────────────────────────────────────
@@ -3543,7 +3557,7 @@ def page_action_tracker(action_items_df, sub_strat_agg, sub_history_df):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def page_data_quality(portfolios_df, instruments_df, audit_df):
-    st.title("📋 Data Quality & Operational View")
+    _render_page_title("\U0001F4CB Data Quality & Operational View")
 
     # Scoped to the Strategy Group selected on the Strategy Detail tab (shared key).
     groups = list(dict.fromkeys(portfolios_df["strategy_name"].tolist()))
@@ -3758,7 +3772,7 @@ def page_whatif(sub_strat_agg, instruments_df, portfolios_df):
         }
         </style>
         """, unsafe_allow_html=True)
-    st.title("\U0001F52E What-If Simulator — Stress Loss")
+    _render_page_title("\U0001F52E What-If Simulator — Stress Loss")
     st.caption(
         "Stagflation scenario. Each slider sets the **assumed Amber + Red share** for that Strategy. "
         "Drag a slider or use the quick-action buttons to model a scenario."
@@ -4025,7 +4039,7 @@ def page_whatif(sub_strat_agg, instruments_df, portfolios_df):
 
 def page_glossary():
     """Compact reference for every tier, status, threshold and metric used elsewhere."""
-    st.title("Glossary")
+    _render_page_title("Glossary")
     st.caption("Definitions for every tier, status, and metric used across the dashboard.")
 
     def _section_card(title, rows):
@@ -4098,15 +4112,6 @@ def page_glossary():
          "Utilisation <b>&gt; 100%</b>. <span style=\"color:var(--breach-text);font-weight:700;\">Red</span> border."),
     ])
 
-    _section_card("Transparency rating", [
-        ("High",
-         "<b style=\"color:var(--color-ok);\">High</b> — Green % ≥ 80%."),
-        ("Medium",
-         "<b style=\"color:var(--color-alert);\">Medium</b> — Green % between 50% and 80%."),
-        ("Low",
-         "<b style=\"color:var(--breach-text);\">Low</b> — Green % &lt; 50%."),
-    ])
-
     _section_card("Action plan metrics", [
         ("Impact (%)",
          "Drop in this Strategy’s Amber + Red utilisation if the holding is resolved to Green."),
@@ -4131,6 +4136,72 @@ def page_glossary():
 # Main
 # ===========================================================================
 
+def _render_page_title(title: str, *, show_stats: bool = False, font_size: int = 38):
+    """Render the page title in a row with the theme toggle on the right.
+    show_stats=True puts stats + toggle in the same right-side column so they
+    sit on the exact same baseline (sibling columns drift)."""
+    try:
+        if show_stats:
+            # Title left, stats+toggle right. Both right-side widgets live in
+            # the SAME column via a nested sub-column row so their baseline matches.
+            title_col, right_col = st.columns([7, 3], vertical_alignment="center")
+        else:
+            title_col, right_col = st.columns([9, 1], vertical_alignment="center")
+    except TypeError:
+        if show_stats:
+            title_col, right_col = st.columns([7, 3])
+        else:
+            title_col, right_col = st.columns([9, 1])
+
+    with title_col:
+        st.markdown(
+            f'<h1 style="font-size:{font_size}px;font-weight:700;color:var(--text-primary);'
+            f'margin:0;padding:0;line-height:1.1;">{title}</h1>',
+            unsafe_allow_html=True,
+        )
+
+    with right_col:
+        if show_stats:
+            # Nested sub-cols inside the right column so stats and toggle share
+            # the same row baseline. The toggle widget brings its own vertical
+            # centering; setting the stats vertical_alignment to "center" matches.
+            try:
+                meta_sub, toggle_sub = st.columns([3, 2], vertical_alignment="center")
+            except TypeError:
+                meta_sub, toggle_sub = st.columns([3, 2])
+            with meta_sub:
+                n_groups = int(st.session_state.get("_meta_n_groups", 0))
+                n_ports  = int(st.session_state.get("_meta_n_portfolios", 0))
+                # Pass 24.11: transform-translateY to nudge stats up to match the
+                # toggle widget's visual baseline (Streamlit's toggle chrome offsets it
+                # ~4-5px lower than where plain text would center).
+                st.markdown(
+                    f'<div style="text-align:right;font-size:12px;color:var(--text-subtle);'
+                    f'padding:0;margin:0;line-height:1;transform:translateY(-6px);">'
+                    f'\u00b7 <strong style="color:var(--text-primary);font-weight:600;">{n_groups}</strong> strategy groups '
+                    f'\u00b7 <strong style="color:var(--text-primary);font-weight:600;">{n_ports}</strong> portfolios</div>',
+                    unsafe_allow_html=True,
+                )
+            with toggle_sub:
+                _render_theme_toggle()
+        else:
+            _render_theme_toggle()
+
+
+def _render_theme_toggle():
+    """Render the Light/Dark theme toggle. Extracted so it can be reused in
+    nested column layouts (e.g. Total Portfolio's title row)."""
+    is_cream = st.session_state["theme_mode"] == "cream"
+    new_cream = st.toggle("Light", value=is_cream, key="theme_toggle",
+                          help="Switch between light (white) and dark theme")
+    new_mode = "cream" if new_cream else "dark"
+    if new_mode != st.session_state["theme_mode"]:
+        st.session_state["theme_mode"] = new_mode
+        st.query_params["theme"] = new_mode
+        st.rerun()
+
+
+
 def main():
     (strategies_df, sub_strategies_df, portfolios_df, instruments_df,
      strat_agg, sub_strat_agg, history_df, sub_history_df, audit_df,
@@ -4150,35 +4221,10 @@ def main():
         st.session_state["theme_mode"] = "cream"
     _render_theme_css()
 
-    # Top bar: brand on the left, meta + theme toggle on the right.
-    bc_left, bc_right = st.columns([3, 2])
-    with bc_left:
-        st.markdown(
-            f'<div style="margin-bottom:6px;padding-top:4px;">'
-            f'<span style="font-size:14px;color:var(--text-soft);font-weight:500;">Transparency Framework \u00b7 Pension Fund</span></div>',
-            unsafe_allow_html=True,
-        )
-    with bc_right:
-        meta_col, toggle_col = st.columns([4, 1])
-        with meta_col:
-            st.markdown(
-                f'<div style="text-align:right;font-size:11px;color:var(--text-subtle);padding-top:8px;">'
-                f'\u00b7 <strong style="color:var(--text-primary);font-weight:500;">{len(strat_agg)}</strong> strategy groups '
-                f'\u00b7 <strong style="color:var(--text-primary);font-weight:500;">{len(portfolios_df)}</strong> portfolios</div>',
-                unsafe_allow_html=True,
-            )
-        with toggle_col:
-            is_cream = st.session_state["theme_mode"] == "cream"
-            new_cream = st.toggle("Light", value=is_cream, key="theme_toggle",
-                                  help="Switch between light (white) and dark theme")
-            new_mode = "cream" if new_cream else "dark"
-            if new_mode != st.session_state["theme_mode"]:
-                st.session_state["theme_mode"] = new_mode
-                # Sync the URL so the theme persistence handler at top of main()
-                # picks up the new mode on rerun (otherwise it forces back to
-                # whatever was previously in the URL).
-                st.query_params["theme"] = new_mode
-                st.rerun()
+    # Pass 24.8: top brand bar removed entirely per user feedback.
+    # Stash meta counts so the per-page title helper can show "N strategy groups · N portfolios".
+    st.session_state["_meta_n_groups"]     = len(strat_agg)
+    st.session_state["_meta_n_portfolios"] = len(portfolios_df)
 
 
     PAGES = ["Total Portfolio", "Strategy Detail", "Action Tracker",
