@@ -5030,4 +5030,290 @@ def page_glossary():
     # Single combined Intransparency Tiers card: data-requirements view +
     # risk-modelling view + the information-needed table from the framework deck.
     _ok_badge = '<span style="color:var(--color-ok);font-weight:800;">✓</span>'
-    _no_badge = '<span style="color:var(--breach-text);font-weight:8
+    _no_badge = '<span style="color:var(--breach-text);font-weight:800;">✗</span>'
+
+    def _subsection(title, color_var, items):
+        """Render a sub-section inside a tier row — an uppercase title in the
+        given accent colour followed by a bulleted list of items."""
+        bullets = "".join(
+            f'<li style="margin-bottom:2px;">{x}</li>' for x in items
+        )
+        return (
+            f'<div style="font-size:11px;color:{color_var};text-transform:uppercase;'
+            f'letter-spacing:0.08em;font-weight:700;margin-top:8px;margin-bottom:2px;">{title}</div>'
+            f'<ul style="margin:0;padding-left:18px;color:var(--text-soft);'
+            f'line-height:1.45;">{bullets}</ul>'
+        )
+
+    def _tier_row(data_def, name_badge, sys_badge, risk_summary, info_items, mgmt_items):
+        return (
+            # Top: the one-line data definition
+            f'<div style="margin-bottom:6px;">{data_def}</div>'
+            # Risk modelling view (check/cross badges)
+            f'<div style="font-size:11px;color:var(--text-subtle);text-transform:uppercase;'
+            f'letter-spacing:0.08em;font-weight:700;margin-top:8px;">Risk modelling view</div>'
+            f'<div style="margin-top:2px;">Name-level {name_badge} · Systematic {sys_badge} '
+            f'<span style="color:var(--text-soft);">— {risk_summary}</span></div>'
+            # Core & important information
+            f'{_subsection("Core &amp; important information", "var(--accent)", info_items)}'
+            # Risk assessment & portfolio management
+            f'{_subsection("Risk assessment &amp; portfolio management", "var(--accent)", mgmt_items)}'
+        )
+
+    _green_info = [
+        "Instrument name and Market Value",
+        "Key instrument attributes (asset type, development status, coupon, maturity)",
+        ("Critical company metrics, updated recurring: 1× Earnings (e.g. EBITDA), "
+         "1× Leverage (e.g. LTV), 1× Cashflow Coverage (e.g. ICR)"),
+    ]
+    _green_mgmt = [
+        "In-depth beyond MTM stress — assess portfolio quality and likelihood of impairment.",
+        ("Assure Risk / Audit Comm on private-credit quality; brief GEC on name-level "
+         "sanctions exposure; size high-risk exposures under stress."),
+        "<b>Portfolio mgmt: name-level actions possible where there is conviction.</b>",
+    ]
+
+    _amber_info = [
+        "Country and sector exposure",
+        "High-level asset-type mix (e.g. VC vs buyout, 1L vs 2L loans, Core vs Core+)",
+        ("High-level mix of attributes and risk sensitivities (e.g. weighted-average "
+         "duration, OAS, coupon, development status)"),
+    ]
+    _amber_mgmt = [
+        "High-level macro scenario analysis (e.g. HHT, stagflation) — captures MTM impacts only.",
+        "Assumes all constituents in a country / sector are equally affected in stress.",
+        "<b>Portfolio mgmt: country / sector overlays possible; name-level actions not possible.</b>",
+    ]
+
+    _red_info = [
+        "<i>No reliable instrument- or portfolio-level information available.</i>",
+    ]
+    _red_mgmt = [
+        "Very high level — wide cone of inaccuracy for exposure and scenario analysis.",
+        ("Must assume non-transparent holdings mirror industry country / sector "
+         "exposure and perform in line with industry beta in stress."),
+        "<b>Portfolio mgmt: not possible to a large extent.</b>",
+    ]
+
+    _section_card("Intransparency Tiers", [
+        ("Green",
+         _tier_row(
+             "Fully transparent. All Amber and Green data requirements are satisfied.",
+             _ok_badge, _ok_badge,
+             "good understanding of both systematic and name-level risk.",
+             _green_info, _green_mgmt)),
+        ("Amber",
+         _tier_row(
+             "Amber data requirements satisfied; one or more Green requirements missing.",
+             _no_badge, _ok_badge,
+             "good understanding of systematic risk, but poor understanding of name-level risk.",
+             _amber_info, _amber_mgmt)),
+        ("Red",
+         _tier_row(
+             "At least one Amber data requirement missing.",
+             _no_badge, _no_badge,
+             "poor understanding of both systematic and name-level risk.",
+             _red_info, _red_mgmt)),
+    ])
+
+    _section_card("Exposure cards", [
+        ("Red exposure",
+         "% of portfolio MV in the Red tier, measured against the Red policy limit."),
+        ("Amber + Red exposure",
+         "% of portfolio MV in the Amber + Red tiers combined, measured against the cumulative policy limit."),
+    ])
+
+    # Pass 28.3 / 29: Action status pills synced with the 3-column Kanban on
+    # the Action Tracker tab; colours pull from theme tokens so the Glossary
+    # follows light/dark mode.
+    _section_card("Action status", [
+        ("Recommended Action Plan",
+         '<b style="color:var(--status-rec-fg);">Recommended Action Plan</b> — no active '
+         'initiative yet. Either there is no remediation work under way, or '
+         'scope / owner / sequencing is still being worked out. Highest-priority '
+         'backlog items for the next planning cycle.'),
+        ("In Progress",
+         '<b style="color:var(--status-prog-fg);">In Progress</b> — active initiative under way '
+         '(e.g. data vendor engaged, external parties onboarding).'),
+        ("Completed",
+         '<b style="color:var(--status-done-fg);">Completed</b> — initiative closed; the '
+         'underlying data gap has been remediated.'),
+    ])
+
+    _section_card("Utilisation status", [
+        ("Utilisation",
+         "Current exposure ÷ policy limit."),
+        ("OK",
+         "Utilisation <b>&lt; 80%</b>. <span style=\"color:var(--color-ok);font-weight:700;\">Green</span> border."),
+        ("ALERT",
+         "Utilisation <b>80% to 100%</b>. <span style=\"color:var(--color-alert);font-weight:700;\">Amber</span> border."),
+        ("BREACH",
+         "Utilisation <b>&gt; 100%</b>. <span style=\"color:var(--breach-text);font-weight:700;\">Red</span> border."),
+    ])
+
+    _section_card("Action plan metrics", [
+        ("Impact (%)",
+         "Drop in this Strategy’s Amber + Red utilisation if the holding is resolved to Green."),
+        ("Cumulative impact",
+         "Sum of Impact for the top N opportunities."),
+        ("Owner team",
+         "<b>Strategy Ops</b>, <b>Deal Team & Legal</b>, or <b>CISD</b>."),
+        ("Estimated impact",
+         "Per-action % reduction in Amber + Red utilisation."),
+        ("Overdue chip",
+         "<span style=\"color:var(--alert-text);font-weight:700;\">Amber</span> if &lt; 60 days past target; <span style=\"color:var(--breach-text);font-weight:700;\">red</span> if 60+ days past."),
+    ])
+
+    st.markdown(
+        '<p style="text-align:center;color:var(--text-subtle);font-size:11px;font-style:italic;'
+        'margin-top:24px;">Definitions track the current policy framework — please flag any drift to the Risk team.</p>',
+        unsafe_allow_html=True,
+    )
+
+
+# ===========================================================================
+# Main
+# ===========================================================================
+
+def _render_page_title(title: str, *, show_stats: bool = False, font_size: int = 38):
+    """Render the page title in a row with the theme toggle on the right.
+    show_stats=True puts stats + toggle in the same right-side column so they
+    sit on the exact same baseline (sibling columns drift)."""
+    try:
+        if show_stats:
+            # Title left, stats+toggle right. Both right-side widgets live in
+            # the SAME column via a nested sub-column row so their baseline matches.
+            title_col, right_col = st.columns([7, 3], vertical_alignment="center")
+        else:
+            title_col, right_col = st.columns([9, 1], vertical_alignment="center")
+    except TypeError:
+        if show_stats:
+            title_col, right_col = st.columns([7, 3])
+        else:
+            title_col, right_col = st.columns([9, 1])
+
+    with title_col:
+        st.markdown(
+            f'<h1 style="font-size:{font_size}px;font-weight:700;color:var(--text-primary);'
+            f'margin:0;padding:0;line-height:1.1;">{title}</h1>',
+            unsafe_allow_html=True,
+        )
+
+    with right_col:
+        if show_stats:
+            # Nested sub-cols inside the right column so stats and toggle share
+            # the same row baseline. The toggle widget brings its own vertical
+            # centering; setting the stats vertical_alignment to "center" matches.
+            try:
+                meta_sub, toggle_sub = st.columns([3, 2], vertical_alignment="center")
+            except TypeError:
+                meta_sub, toggle_sub = st.columns([3, 2])
+            with meta_sub:
+                n_groups = int(st.session_state.get("_meta_n_groups", 0))
+                n_ports  = int(st.session_state.get("_meta_n_portfolios", 0))
+                # Pass 24.11: transform-translateY to nudge stats up to match the
+                # toggle widget's visual baseline (Streamlit's toggle chrome offsets it
+                # ~4-5px lower than where plain text would center).
+                st.markdown(
+                    f'<div style="text-align:right;font-size:12px;color:var(--text-subtle);'
+                    f'padding:0;margin:0;line-height:1;transform:translateY(-6px);">'
+                    f'\u00b7 <strong style="color:var(--text-primary);font-weight:600;">{n_groups}</strong> strategy groups '
+                    f'\u00b7 <strong style="color:var(--text-primary);font-weight:600;">{n_ports}</strong> portfolios</div>',
+                    unsafe_allow_html=True,
+                )
+            with toggle_sub:
+                _render_theme_toggle()
+        else:
+            _render_theme_toggle()
+
+
+def _render_theme_toggle():
+    """Render the Light/Dark theme toggle. Extracted so it can be reused in
+    nested column layouts (e.g. Total Portfolio's title row)."""
+    is_cream = st.session_state["theme_mode"] == "cream"
+    new_cream = st.toggle("Light", value=is_cream, key="theme_toggle",
+                          help="Switch between light (white) and dark theme")
+    new_mode = "cream" if new_cream else "dark"
+    if new_mode != st.session_state["theme_mode"]:
+        st.session_state["theme_mode"] = new_mode
+        st.query_params["theme"] = new_mode
+        st.rerun()
+
+
+
+def main():
+    (strategies_df, sub_strategies_df, portfolios_df, instruments_df,
+     strat_agg, sub_strat_agg, history_df, sub_history_df, audit_df,
+     action_items_df) = generate_all_data(_tier_mix_signature())
+
+    # Theme — must be initialised BEFORE any markdown/plot helper renders.
+    # Theme persistence (Pass 10): read ?theme= from URL so it survives any
+    # full-page navigation (clicking an exposure card / strategy widget triggers
+    # a hard reload that resets session_state).
+    try:
+        _qt = st.query_params.get("theme")
+    except Exception:
+        _qt = None
+    if _qt in ("dark", "cream"):
+        st.session_state["theme_mode"] = _qt
+    if "theme_mode" not in st.session_state:
+        st.session_state["theme_mode"] = "cream"
+    _render_theme_css()
+
+    # Pass 24.8: top brand bar removed entirely per user feedback.
+    # Stash meta counts so the per-page title helper can show "N strategy groups · N portfolios".
+    st.session_state["_meta_n_groups"]     = len(strat_agg)
+    st.session_state["_meta_n_portfolios"] = len(portfolios_df)
+
+
+    PAGES = ["Total Portfolio", "Strategy Detail", "Action Tracker",
+             "Data Quality", "What-If Simulator", "Glossary"]
+
+    if "active_page" not in st.session_state:
+        st.session_state["active_page"] = "Total Portfolio"
+
+    # Deep-link: "Investigate breach" buttons carry ?goto=strategy&name=<Group>
+    # plus optional &sdfocus=<Tier>&sdstrat=<Group>. We promote the page nav and the
+    # selected Group here, but we do NOT clear sdfocus/sdstrat — page_strategy_detail
+    # reads them at the top and clears once consumed (so the focused card is set).
+    if st.query_params.get("goto") == "strategy":
+        st.session_state["active_page"] = "Strategy Detail"
+        _nm = st.query_params.get("name")
+        if _nm:
+            st.session_state["sd_sel"] = _nm     # preselect the Strategy Group
+        _sc = st.query_params.get("sdscope")
+        if _sc:
+            st.session_state["sd_scope"] = _sc   # narrow Scope dropdown to clicked Strategy
+        # Clear navigation keys (goto + name + sdscope). Leave sdfocus + sdstrat
+        # for page_strategy_detail to consume.
+        for _k in ("goto", "name", "sdscope"):
+            try:
+                del st.query_params[_k]
+            except Exception:
+                pass
+    elif st.query_params.get("sdfocus"):
+        # Strategy Detail exposure-card drill-through — keep the user on Strategy Detail
+        # (a full page reload from the <a href> resets session state, so reconstruct it here)
+        st.session_state["active_page"] = "Strategy Detail"
+        _s = st.query_params.get("sdstrat")
+        if _s:
+            st.session_state["sd_sel"] = _s
+        # sdfocus/sdstrat left in the URL for page_strategy_detail to consume + clear
+
+        # Tab-styled horizontal nav, session-state controlled (so it can be switched in code)
+    active = st.radio(
+        "Navigation", PAGES,
+        key="active_page",
+        horizontal=True,
+        label_visibility="collapsed",
+    )
+
+    if   active == "Total Portfolio":   page_portfolio_overview(strat_agg, sub_strat_agg, portfolios_df, history_df, sub_history_df, instruments_df)
+    elif active == "Strategy Detail":   page_strategy_detail(strat_agg, sub_strat_agg, portfolios_df, instruments_df, history_df, sub_history_df)
+    elif active == "Action Tracker":    page_action_tracker(action_items_df, sub_strat_agg, sub_history_df)
+    elif active == "Data Quality":      page_data_quality(portfolios_df, instruments_df, audit_df)
+    elif active == "What-If Simulator": page_whatif(sub_strat_agg, instruments_df, portfolios_df)
+    elif active == "Glossary":          page_glossary()
+
+if __name__ == "__main__":
+    main()
