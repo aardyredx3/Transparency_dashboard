@@ -519,36 +519,36 @@ def _render_theme_css():
     hover_card = "#EAF2FB" if is_cream else "#293251"
     hover_card_border = t["border-strong"]
     investigate_hover_bg = "#F5C1C1" if is_cream else "#992525"
-    # Pass 29.7: dialog/modal CSS only applies in dark mode. Cream mode used
-    # Streamlit's defaults perfectly before Pass 29.2 (dashboard clearly
-    # visible behind a faint backdrop, clean white card with a subtle border).
-    # Injecting any of our overrides in cream mode caused the grey-curtain
-    # bug the user kept hitting — so we no-op here when is_cream.
-    dialog_css = "" if is_cream else """
-/* === Modal dialog chrome — dark mode only (Pass 29.7) === */
-/* Layers: [data-baseweb="modal"] (wrapper) → [data-baseweb="modal-backdrop"]
-   (dim) → div[role="dialog"] (the card itself). Streamlit's default in dark
-   mode paints the card white, so we flip the card + paint the backdrop dark. */
-[data-baseweb="modal"] { background: transparent !important; }
-[data-baseweb="modal-backdrop"] { background: rgba(0,0,0,0.50) !important; }
-div[role="dialog"], [data-testid="stDialog"] {
+    # Pass 29.18: dialog CSS now applies in BOTH cream and dark modes. Streamlit
+    # Cloud was ignoring config.toml's `base = "light"` for the dialog element
+    # and rendering it dark even in cream mode. Forcing var(--bg-surface) etc.
+    # gives the modal the right colours regardless of what Cloud's default
+    # would have been. Backdrop opacity is theme-aware: transparent in cream
+    # (so the dashboard stays visible) and ~50% black in dark (so the modal
+    # visibly floats).
+    _backdrop = "transparent" if is_cream else "rgba(0,0,0,0.50)"
+    dialog_css = f"""
+/* === Modal dialog chrome — both themes (Pass 29.18) === */
+[data-baseweb="modal"] {{ background: transparent !important; }}
+[data-baseweb="modal-backdrop"] {{ background: {_backdrop} !important; }}
+div[role="dialog"], [data-testid="stDialog"] {{
   background-color: var(--bg-surface) !important;
   color: var(--text-primary) !important;
   border: 1px solid var(--border-strong) !important;
   border-radius: 10px !important;
-  box-shadow: 0 12px 36px rgba(0,0,0,0.45) !important;
-}
+  box-shadow: 0 12px 36px rgba(0,0,0,0.30) !important;
+}}
 div[role="dialog"] h1, div[role="dialog"] h2, div[role="dialog"] h3,
 [data-testid="stDialog"] h1, [data-testid="stDialog"] h2, [data-testid="stDialog"] h3
-  { color: var(--text-primary) !important; }
+  {{ color: var(--text-primary) !important; }}
 div[role="dialog"] [data-testid="stMarkdownContainer"],
 [data-testid="stDialog"] [data-testid="stMarkdownContainer"]
-  { color: var(--text-primary); }
+  {{ color: var(--text-primary); }}
 div[role="dialog"] [data-testid="baseButton-headerNoPadding"],
 div[role="dialog"] button[kind="headerNoPadding"]
-  { color: var(--text-soft) !important; }
+  {{ color: var(--text-soft) !important; }}
 div[role="dialog"] [data-testid="baseButton-headerNoPadding"]:hover
-  { color: var(--text-primary) !important; }
+  {{ color: var(--text-primary) !important; }}
 """
     investigate_hover_text = t["color-breach"] if is_cream else "#FFD5D5"
     css = f"""
