@@ -2152,7 +2152,7 @@ def _cockpit_widget_html(row, expanded=True, show_investigate=True):
         # Pass 14.2: hover reveals exposure / limit so users can see the source
         # numbers behind the utilisation %  (e.g. "2.0% / 17.0%" for an 11% util)
         if expo is not None and limit is not None:
-            tip_attr = f' title="Exposure / Limit: {expo:.1f}% / {limit:.1f}%"'
+            tip_attr = f' title="Exposure / Limit: {expo:.0f}% / {limit:.0f}%"'
             cursor   = "cursor:help;"
         else:
             tip_attr = ""
@@ -2210,11 +2210,14 @@ def _cockpit_widget_html(row, expanded=True, show_investigate=True):
     _status     = str(row.get("action_status", "") or "").strip()
     # Pass 28.5 / 29: short pill format "Action Plan: <STATE>". Colours now
     # come from theme tokens so they flip between cream and dark modes.
+    # Pass 29.20: drop "Action Plan:" prefix — the surrounding "Action Status"
+    # header already supplies the noun, so the pill becomes just the state
+    # (e.g. "IN PROGRESS" after the CSS uppercase transform).
     _STATUS_DISPLAY = {
-        "No initiative":  ("Action Plan: TBD",         "var(--status-rec-fg)"),
-        "Planned / TBD":  ("Action Plan: TBD",         "var(--status-rec-fg)"),
-        "In progress":    ("Action Plan: In Progress", "var(--status-prog-fg)"),
-        "Completed":      ("Action Plan: Completed",   "var(--status-done-fg)"),
+        "No initiative":  ("TBD",         "var(--status-rec-fg)"),
+        "Planned / TBD":  ("TBD",         "var(--status-rec-fg)"),
+        "In progress":    ("In Progress", "var(--status-prog-fg)"),
+        "Completed":      ("Completed",   "var(--status-done-fg)"),
     }
     _disp_status, _status_color = _STATUS_DISPLAY.get(_status, ("", "var(--text-muted)"))
 
@@ -2359,7 +2362,7 @@ def _total_exposure_card_html(label, util_pct, value_pct, limit_pct, color, brea
         f'<div style="font-size:13px;color:{used_color};font-variant-numeric:tabular-nums;line-height:1.2;">'
         f'<span class="kpi-number" style="font-size:22px;">{util_pct:.0f}<span style="font-size:13px;font-weight:600;opacity:0.7;">%</span></span> <span class="metric-label">used</span></div>'
         f'<div style="font-size:12px;color:var(--text-muted);font-variant-numeric:tabular-nums;line-height:1.2;">'
-        f'<span style="color:var(--text-primary);font-weight:500;">{value_pct:.1f}%</span> / {limit_pct:.1f}% limit{overshoot_badge}</div>'
+        f'<span style="color:var(--text-primary);font-weight:500;">{value_pct:.0f}%</span> / {limit_pct:.0f}% limit{overshoot_badge}</div>'
         f'</div>'
         f'</div>'
     )
@@ -2470,7 +2473,7 @@ def _breakdown_row_html(label, contrib_pct, share_pct, count, max_contrib, tier_
         f'<div style="position:relative;height:10px;background:var(--bg-track);border-radius:2px;">'
         f'<div style="position:absolute;left:0;top:0;height:100%;width:{bar_width:.1f}%;background:{tier_color};border-radius:2px;"></div>'
         f'</div>'
-        f'<div style="font-size:12px;text-align:right;color:{val_color};font-variant-numeric:tabular-nums;"><span style="font-weight:500;">{contrib_pct:.2f}%</span> <span style="color:var(--text-subtle);">\u00b7 {share_pct:.0f}% of tier</span></div>'
+        f'<div style="font-size:12px;text-align:right;color:{val_color};font-variant-numeric:tabular-nums;"><span style="font-weight:500;">{contrib_pct:.0f}%</span> <span style="color:var(--text-subtle);">\u00b7 {share_pct:.0f}% of tier</span></div>'
         f'<div style="font-size:11px;text-align:right;color:var(--text-muted);font-variant-numeric:tabular-nums;">{count}</div>'
         f'</div>'
     )
@@ -2545,12 +2548,12 @@ def _ai_observations_html(strat_agg, sub_strat_agg, portfolios_df, history_df, s
                 direction, arrow_color, arrow = "worsened", "var(--breach-text)", "\u25B2"
             if direction == "held steady":
                 lead = (f'Intransparency exposure held steady month-over-month '
-                        f'(<span class="kpi-number">{cur:.1f}%</span> vs <span class="kpi-number">{prev:.1f}%</span> last month).')
+                        f'(<span class="kpi-number">{cur:.0f}%</span> vs <span class="kpi-number">{prev:.0f}%</span> last month).')
             else:
                 lead = (f'Intransparency exposure {direction} by '
-                        f'<span class="kpi-number" style="color:{arrow_color};font-size:15px;">{arrow} {abs(delta):.2f}%</span>'
-                        f' month-over-month (<span class="kpi-number">{cur:.1f}%</span> vs '
-                        f'<span class="kpi-number">{prev:.1f}%</span> last month).')
+                        f'<span class="kpi-number" style="color:{arrow_color};font-size:15px;">{arrow} {abs(delta):.0f}%</span>'
+                        f' month-over-month (<span class="kpi-number">{cur:.0f}%</span> vs '
+                        f'<span class="kpi-number">{prev:.0f}%</span> last month).')
             always_sections.append(
                 f'<div style="margin-bottom:4px;">'
                 f'<div class="metric-label" style="margin-bottom:2px;">Portfolio overview</div>'
@@ -2591,7 +2594,7 @@ def _ai_observations_html(strat_agg, sub_strat_agg, portfolios_df, history_df, s
         if _by_strat is not None and len(_by_strat):
             _top = _by_strat.sort_values(ascending=False).head(4)
             _bits = [
-                f'<b>{name}</b> (<span class="kpi-number" style="color:var(--breach-text);">{v:.2f}%</span>)'
+                f'<b>{name}</b> (<span class="kpi-number" style="color:var(--breach-text);">{v:.0f}%</span>)'
                 for name, v in _top.items() if v > 0.005
             ]
             if _bits:
@@ -2678,7 +2681,7 @@ def _ai_observations_html(strat_agg, sub_strat_agg, portfolios_df, history_df, s
                 f'<div style="font-size:14px;color:var(--text-soft);line-height:1.5;">'
                 f'<b>{top_field}</b> \u2014 missing on <span class="kpi-number">{top_n}</span> instruments. '
                 f'Resolving it could reduce Amber + Red exposure by up to '
-                f'<b style="color:var(--accent);"><span class="kpi-number">{_impact_pct:.2f}%</span></b>.'
+                f'<b style="color:var(--accent);"><span class="kpi-number">{_impact_pct:.0f}%</span></b>.'
                 f'</div></div>'
             )
 
@@ -2729,11 +2732,17 @@ def _ai_observations_html(strat_agg, sub_strat_agg, portfolios_df, history_df, s
 
 
 
-def _gauge_bar_html(label: str, current_pct: float) -> str:
+def _gauge_bar_html(label: str, current_pct: float,
+                    exposure_pct: float = None, limit_pct: float = None) -> str:
     """Pass 27.1: gauge bar capped at 100% — bar shows OK (0-80%) + ALERT
     (80-100%) zones only. If util > 100% the indicator pins to the right edge;
     the number above the bar still shows the actual util (e.g. 106%). Status
-    word in {OK / Alert / Breach}."""
+    word in {OK / Alert / Breach}.
+
+    Pass 29.19: if exposure_pct + limit_pct are supplied, render a small
+    "X.X% / Y.Y% limit" sub-line directly under the right-aligned util % so
+    the user can see what's actually being measured against the limit without
+    leaving the popup."""
     pos_pct = max(0.0, min(current_pct, 100.0))
     # Pass 29: status text + bar zones + indicator all read from theme tokens.
     if current_pct > 100:
@@ -2750,14 +2759,28 @@ def _gauge_bar_html(label: str, current_pct: float) -> str:
         "var(--gauge-ok-fill) 0%, var(--gauge-ok-fill) 80%, "
         "var(--gauge-alert-fill) 80%, var(--gauge-alert-fill) 100%)"
     )
+    # Pass 29.19: optional exposure / limit sub-line beneath the util %.
+    if exposure_pct is not None and limit_pct is not None:
+        sub_html = (
+            f'<div style="font-size:10px;font-weight:600;color:var(--text-subtle);'
+            f'font-variant-numeric:tabular-nums;line-height:1.2;margin-top:1px;'
+            f'text-align:right;letter-spacing:0.02em;">'
+            f'{exposure_pct:.0f}% / {limit_pct:.0f}% limit'
+            f'</div>'
+        )
+    else:
+        sub_html = ""
     return (
         f'<div style="margin-bottom:14px;">'
-        f'<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">'
-        f'<div>'
+        f'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">'
+        f'<div style="padding-top:2px;">'
         f'<span style="font-size:14px;font-weight:800;color:var(--text-primary);">{label}</span>'
         f'<span style="font-size:13px;font-weight:700;color:{color};margin-left:8px;">{status}</span>'
         f'</div>'
-        f'<div style="font-size:18px;font-weight:800;color:{color};font-variant-numeric:tabular-nums;">{current_pct:.0f}%</div>'
+        f'<div style="display:flex;flex-direction:column;align-items:flex-end;">'
+        f'<div style="font-size:18px;font-weight:800;color:{color};font-variant-numeric:tabular-nums;line-height:1;">{current_pct:.0f}%</div>'
+        f'{sub_html}'
+        f'</div>'
         f'</div>'
         f'<div style="position:relative;height:18px;border-radius:4px;background:{bar_bg};border:1px solid var(--border-default);">'
         f'<div style="position:absolute;top:-2px;bottom:-2px;left:80%;width:0;border-left:1px dashed var(--text-subtle);"></div>'
@@ -2814,8 +2837,25 @@ def _render_preview_dialog(row, sub_history_df):
             unsafe_allow_html=True,
         )
         # ── Two Risk Posture gauges ────────────────────────────────────
-        st.markdown(_gauge_bar_html("Red Utilisation %",        red_u), unsafe_allow_html=True)
-        st.markdown(_gauge_bar_html("Amber + Red Utilisation %", cum_u), unsafe_allow_html=True)
+        # Pass 29.19: surface exposure / limit % under each util gauge so the
+        # user can read what's actually being measured against the limit.
+        # The aggregate row uses uppercase "Red_pct" for the red exposure
+        # fraction and "cum_pct" for amber+red; both are fractions of MV.
+        # threshold_red / threshold_cum are also fractions.
+        red_exp_pct  = float(row.get("Red_pct",       row.get("red_pct", 0.0))) * 100
+        red_lim_pct  = float(row.get("threshold_red", 0.0)) * 100
+        cum_exp_pct  = float(row.get("cum_pct",       0.0)) * 100
+        cum_lim_pct  = float(row.get("threshold_cum", 0.0)) * 100
+        st.markdown(
+            _gauge_bar_html("Red Utilisation %", red_u,
+                            exposure_pct=red_exp_pct, limit_pct=red_lim_pct),
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            _gauge_bar_html("Amber + Red Utilisation %", cum_u,
+                            exposure_pct=cum_exp_pct, limit_pct=cum_lim_pct),
+            unsafe_allow_html=True,
+        )
 
         # ── Driver of gap ──────────────────────────────────────────────
         driver_text = str(row.get("breach_driver", "") or "").strip()
@@ -2840,13 +2880,16 @@ def _render_preview_dialog(row, sub_history_df):
         # ── Action status + plan text ─────────────────────────────────
         # Pass 28.5 / 29: short pill format "Action Plan: <STATE>" with
         # theme-aware colours.
+        # Pass 29.20: drop "Action Plan:" prefix — the "Action Status" header
+        # above the pill already supplies the noun, so the pill is now just
+        # the state value on its own.
         status = str(row.get("action_status", "") or "")
         plan   = str(row.get("action_plan_text", "") or "")
         _STATUS_DISPLAY = {
-            "No initiative":  ("Action Plan: TBD",         "var(--status-rec-fg)"),
-            "Planned / TBD":  ("Action Plan: TBD",         "var(--status-rec-fg)"),
-            "In progress":    ("Action Plan: In Progress", "var(--status-prog-fg)"),
-            "Completed":      ("Action Plan: Completed",   "var(--status-done-fg)"),
+            "No initiative":  ("TBD",         "var(--status-rec-fg)"),
+            "Planned / TBD":  ("TBD",         "var(--status-rec-fg)"),
+            "In progress":    ("In Progress", "var(--status-prog-fg)"),
+            "Completed":      ("Completed",   "var(--status-done-fg)"),
         }
         disp_status, st_color = _STATUS_DISPLAY.get(status, ("—", "var(--text-muted)"))
         st.markdown(
@@ -3085,8 +3128,8 @@ def page_portfolio_overview(strat_agg, sub_strat_agg, portfolios_df, history_df,
             f'<div style="font-size:14px;color:var(--text-soft);line-height:1.6;margin:-8px 0 14px 0;padding-left:15px;">'
             f'Total intransparency at <b style="color:var(--text-primary);">{_util_total*100:.0f}%</b> of the portfolio limit \u2014 '
             f'<b style="color:{_rt_color};">{_rt_status}</b>.<br/>'
-            f'Portfolio is <b style="color:var(--text-primary);">{_w_green_pct:.1f}%</b> transparent (Green); '
-            f'<b style="color:var(--text-primary);">{_w_cum_pct:.1f}%</b> intransparent (Amber + Red).'
+            f'Portfolio is <b style="color:var(--text-primary);">{_w_green_pct:.0f}%</b> transparent (Green); '
+            f'<b style="color:var(--text-primary);">{_w_cum_pct:.0f}%</b> intransparent (Amber + Red).'
             f'</div>',
             unsafe_allow_html=True,
         )
@@ -3422,7 +3465,7 @@ def page_portfolio_overview(strat_agg, sub_strat_agg, portfolios_df, history_df,
         # Summary line
         st.markdown(
             f'<p style="font-size:14px;color:var(--text-soft);margin:6px 0 12px;">'
-            f'The bar below is <span style="color:var(--text-primary);font-weight:500;">{total_tier_pct:.2f}%</span> '
+            f'The bar below is <span style="color:var(--text-primary);font-weight:500;">{total_tier_pct:.0f}%</span> '
             f'\u2014 the {_tier_disp} exposure shown in the top panel '
             f'(<span style="color:var(--text-primary);">{n_contrib}</span> portfolios contributing).</p>',
             unsafe_allow_html=True,
@@ -3809,7 +3852,7 @@ def page_strategy_detail(strat_agg, sub_strat_agg, portfolios_df, instruments_df
 
         st.markdown(
             f'<p style="font-size:14px;color:var(--text-soft);margin:6px 0 12px;">'
-            f'The bar below is <span style="color:var(--text-primary);font-weight:500;">{total_tier_pct:.2f}%</span> '
+            f'The bar below is <span style="color:var(--text-primary);font-weight:500;">{total_tier_pct:.0f}%</span> '
             f"&mdash; {scope_name}'s {_tier_disp} exposure "
             f'(<span style="color:var(--text-primary);">{n_contrib}</span> portfolios contributing).</p>',
             unsafe_allow_html=True)
@@ -4032,7 +4075,7 @@ def page_strategy_detail(strat_agg, sub_strat_agg, portfolios_df, instruments_df
                 f'color:var(--accent);margin:0 0 4px 0;">\u2605 Top opportunity</p>'
                 f'<p style="font-size:14px;color:var(--text-primary);margin:0;">'
                 f'Fix <b>{top_label}</b> across <b>{top_n}</b> instruments \u2192 '
-                f'<b style="color:var(--accent);">\u2212{top_imp:.2f}%</b> on Amber + Red utilisation'
+                f'<b style="color:var(--accent);">\u2212{top_imp:.0f}%</b> on Amber + Red utilisation'
                 f'</p></div>',
                 unsafe_allow_html=True,
             )
@@ -4069,7 +4112,7 @@ def page_strategy_detail(strat_agg, sub_strat_agg, portfolios_df, instruments_df
             footer_bits = []
             for n_top in (1, 3, 5):
                 if n_top <= len(cumul):
-                    footer_bits.append(f"top {n_top} \u2192 <b style=\"color:var(--accent);\">\u2212{cumul[n_top-1]:.2f}%</b>")
+                    footer_bits.append(f"top {n_top} \u2192 <b style=\"color:var(--accent);\">\u2212{cumul[n_top-1]:.0f}%</b>")
             footer = " &middot; ".join(footer_bits)
             st.markdown(
                 f'<p style="font-size:12px;color:var(--text-muted);margin:8px 0 0 0;">'
@@ -4364,7 +4407,7 @@ def _action_card_html(row):
         f'<span style="background:var(--status-done-bg);color:var(--status-done-fg);padding:2px 8px;'
         f'border-radius:10px;font-size:10px;font-weight:700;letter-spacing:0.04em;'
         f'text-transform:uppercase;border:1px solid var(--status-done-border);">'
-        f'\u2212{impact:.1f}%</span>'
+        f'\u2212{impact:.0f}%</span>'
     ) if impact > 0 else ""
 
     return (
@@ -4416,8 +4459,8 @@ def _most_improved_widget(sub_history_df, sub_strat_agg):
             f'text-transform:uppercase;margin-bottom:4px;">\u2B50 Most Improved</div>'
             f'<div style="font-size:15px;font-weight:600;color:var(--text-primary);margin-bottom:4px;">{name}</div>'
             f'<div style="font-size:13px;color:var(--text-muted);">'
-            f'Green % up <b style="color:var(--color-ok);">+{d:.1f}%</b> over last 3 months '
-            f'<span style="color:var(--text-subtle);">(now {cur_green:.1f}% Green)</span>'
+            f'Green % up <b style="color:var(--color-ok);">+{d:.0f}%</b> over last 3 months '
+            f'<span style="color:var(--text-subtle);">(now {cur_green:.0f}% Green)</span>'
             f'</div>'
             f'</div>'
         )
@@ -4850,7 +4893,7 @@ def page_whatif(sub_strat_agg, instruments_df, portfolios_df):
                         f'line-height:1.25;margin-bottom:8px;">{r["sub_strategy_name"]}</div>'
                         f'<div style="font-size:11px;color:var(--text-subtle);margin-bottom:4px;'
                         f'padding-top:6px;border-top:1px solid var(--border-default);">'
-                        f'Current Amber + Red: <b style="color:var(--text-primary);">{current_actual:.1f}%</b>'
+                        f'Current Amber + Red: <b style="color:var(--text-primary);">{current_actual:.0f}%</b>'
                         f'  ·  Policy: <b style="color:var(--text-primary);">{current_lim_pct}%</b>'
                         f'</div>'
                         f'</div>',
@@ -4866,7 +4909,7 @@ def page_whatif(sub_strat_agg, instruments_df, portfolios_df):
                         key=f"wi_lim_pct_{sid}",
                         label_visibility="collapsed",
                         help=(f"Assumed Amber + Red share for {r['sub_strategy_name']} in this scenario. "
-                              f"Current actual: {current_actual:.1f}%. Policy: {current_lim_pct}%."),
+                              f"Current actual: {current_actual:.0f}%. Policy: {current_lim_pct}%."),
                     )
                     proposed_shares[sid] = new_share_pct / 100.0
 
@@ -4926,7 +4969,7 @@ def page_whatif(sub_strat_agg, instruments_df, portfolios_df):
             f'border-left:4px solid var(--text-muted);border-radius:8px;padding:14px 18px;">'
             f'<div class="metric-label">Current</div>'
             f'<div class="kpi-number" style="font-size:32px;color:var(--text-primary);font-weight:800;">'
-            f'{sim_baseline_pct*100:.2f}%</div>'
+            f'{sim_baseline_pct*100:.0f}%</div>'
             f'<div style="font-size:11px;color:var(--text-subtle);">of portfolio MV (baseline)</div>'
             f'</div>',
             unsafe_allow_html=True,
@@ -4937,7 +4980,7 @@ def page_whatif(sub_strat_agg, instruments_df, portfolios_df):
             f'border-left:4px solid var(--accent);border-radius:8px;padding:14px 18px;">'
             f'<div class="metric-label">Simulated</div>'
             f'<div class="kpi-number" style="font-size:32px;color:var(--text-primary);font-weight:800;">'
-            f'{sim_new_pct*100:.2f}%</div>'
+            f'{sim_new_pct*100:.0f}%</div>'
             f'<div style="font-size:11px;color:var(--text-subtle);">of portfolio MV (assumed scenario)</div>'
             f'</div>',
             unsafe_allow_html=True,
@@ -4952,7 +4995,7 @@ def page_whatif(sub_strat_agg, instruments_df, portfolios_df):
             f'border-left:4px solid {delta_color};border-radius:8px;padding:14px 18px;">'
             f'<div class="metric-label">\u0394 vs current</div>'
             f'<div class="kpi-number" style="font-size:32px;color:{delta_color};font-weight:800;">'
-            f'{delta_arrow} {abs(delta_pct)*100:.2f}% pts</div>'
+            f'{delta_arrow} {abs(delta_pct)*100:.0f}% pts</div>'
             f'<div style="font-size:11px;color:var(--text-subtle);">{verdict} stress loss</div>'
             f'</div>',
             unsafe_allow_html=True,
