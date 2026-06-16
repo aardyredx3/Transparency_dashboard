@@ -678,40 +678,43 @@ PRODUCT_GROUPING = {
 # thr_amber is kept equal to thr_cum since the dashboard reports Red and the
 # cumulative Amber + Red — we don't track Amber-tier-only as a separate limit.
 # Multi Asset left unchanged (no mapping provided in the spreadsheet).
+# Pass 25.12: every Strategy-level Red limit and Amber+Red limit carries a
+# flat +5pp buffer so utilisation never goes infinite against a 0% limit.
+# Total Portfolio aggregate limits (TOTAL_PORTFOLIO_RED_LIMIT = 5%,
+# TOTAL_PORTFOLIO_CUM_LIMIT = 25%) are NOT buffered.
 SUB_STRATEGY_META = {
+    # Format: (sub_strategy_id, name, threshold_red, threshold_amber, threshold_cum)
+    # Each value = spreadsheet limit + 0.05 buffer, capped at 1.0.
     "G01": [
-        ("S01a", "EQ Developed Markets", 0.00, 0.15, 0.15),
-        ("S01b", "EQ Emerging Markets",  0.00, 0.05, 0.05),
+        ("S01a", "EQ Developed Markets", 0.05, 0.20, 0.20),     # was 0.00 / 0.15
+        ("S01b", "EQ Emerging Markets",  0.05, 0.10, 0.10),     # was 0.00 / 0.05
     ],
     "G02": [
-        ("S02a", "FI Active",            0.00, 0.13, 0.13),
-        ("S02b", "HY Credit",            0.00, 0.58, 0.58),
-        ("S02c", "MAARS",                0.00, 0.00, 0.00),
-        ("S02d", "EILB",                 0.00, 0.03, 0.03),
+        ("S02a", "FI Active",            0.05, 0.18, 0.18),     # was 0.00 / 0.13
+        ("S02b", "HY Credit",            0.05, 0.63, 0.63),     # was 0.00 / 0.58
+        ("S02c", "MAARS",                0.05, 0.05, 0.05),     # was 0.00 / 0.00
+        ("S02d", "EILB",                 0.05, 0.08, 0.08),     # was 0.00 / 0.03
     ],
     "G03": [
-        # HF1/HF2 mapped to MA Ultra per user direction
-        ("S03a", "Hedge Fund 1",         0.23, 1.00, 1.00),
-        ("S03b", "Hedge Fund 2",         0.23, 1.00, 1.00),
+        # HF1 takes MA data: spreadsheet was A+R 100% / Red 25% → buffered to 100% / 30%
+        ("S03a", "Hedge Fund 1",         0.30, 1.00, 1.00),
+        ("S03b", "Hedge Fund 2",         0.28, 1.00, 1.00),     # was 0.23 / 1.00
     ],
     "G04": [
-        ("S04a", "RE Bricks and Mortar", 0.00, 0.11, 0.11),
-        # RE Debt mapped to RE Credit
-        ("S04b", "RE Debt",              0.00, 0.02, 0.02),
+        ("S04a", "RE Bricks and Mortar", 0.05, 0.16, 0.16),     # was 0.00 / 0.11
+        ("S04b", "RE Debt",              0.05, 0.07, 0.07),     # was 0.00 / 0.02
     ],
     "G05": [
-        ("S05a", "PE Active",            0.09, 0.65, 0.65),
-        # PE Secondaries mapped to PSL
-        ("S05b", "PE Secondaries",       0.00, 0.45, 0.45),
-        ("S05c", "PE Mezz",              0.00, 0.40, 0.40),
+        ("S05a", "PE Active",            0.14, 0.70, 0.70),     # was 0.09 / 0.65
+        ("S05b", "PE Secondaries",       0.05, 0.50, 0.50),     # was 0.00 / 0.45
+        ("S05c", "PE Mezz",              0.05, 0.45, 0.45),     # was 0.00 / 0.40
     ],
     "G06": [
-        ("S06a", "Infrastructure Active", 0.00, 0.24, 0.24),
-        ("S06b", "Infrastructure Debt",   0.00, 0.40, 0.40),
+        ("S06a", "Infrastructure Active", 0.05, 0.29, 0.29),    # was 0.00 / 0.24
+        ("S06b", "Infrastructure Debt",   0.05, 0.45, 0.45),    # was 0.00 / 0.40
     ],
     "G07": [
-        # Multi Asset — unchanged (no spreadsheet mapping yet)
-        ("S07a", "Multi Asset1",         0.05, 0.20, 0.25),
+        ("S07a", "Multi Asset1",         0.10, 0.25, 0.30),     # was 0.05 / 0.25
     ],
 }
 
@@ -722,23 +725,174 @@ SUB_STRATEGY_META = {
 # EILB 3%) get fully Green tier-mix to absorb multinomial sampling variance.
 # [green, amber, red] proportions.
 TIER_MIX = {
-    "EQ Developed Markets":   [0.98, 0.02, 0.00],  # tuned vs seed — target Cum ~ 8% well under 15%
-    "EQ Emerging Markets":    [0.98, 0.02, 0.00],  # target Cum ~ 2% under 5%
-    "FI Active":              [0.98, 0.02, 0.00],  # target Cum ~ 4% under 13%
-    "HY Credit":              [0.85, 0.15, 0.00],  # target Cum ~ 20% under 58%
-    "MAARS":                  [1.00, 0.00, 0.00],  # 0% limit — must be fully Green
-    "EILB":                   [1.00, 0.00, 0.00],  # 3% tight limit — safety margin
-    "Hedge Fund 1":           [0.78, 0.13, 0.09],  # under 100% Cum, 23% Red
-    "Hedge Fund 2":           [0.78, 0.13, 0.09],  # under 100% Cum, 23% Red
-    "RE Bricks and Mortar":   [0.97, 0.03, 0.00],  # target Cum ~ 6% under 11%
-    "RE Debt":                [1.00, 0.00, 0.00],  # 2% tight limit — fully Green
-    "PE Active":              [0.86, 0.13, 0.01],  # target Cum ~ 30%, Red ~ 6% well under 9%,  # target Cum ~ 25% under 65%, no Red exposure
-    "PE Secondaries":         [0.35, 0.65, 0.00],  # BREACH — tuned for ~118% util (was 0.20/0.80 → 150%)
-    "PE Mezz":                [0.75, 0.25, 0.00],  # target Cum ~ 25% under 40%
-    "Infrastructure Active":  [0.84, 0.16, 0.00],  # ALERT — target Cum ~ 20% (~83% util)
-    "Infrastructure Debt":    [0.85, 0.15, 0.00],  # under 40%
-    "Multi Asset1":           [0.92, 0.07, 0.01],  # under 25% Cum, under 5% Red
+    "EQ Developed Markets":         [0.93, 0.04, 0.03],
+    "EQ Emerging Markets":          [0.97, 0.01, 0.02],
+    "FI Active":                    [0.96, 0.01, 0.03],
+    "HY Credit":                    [0.45, 0.10, 0.45],
+    "MAARS":                        [0.88, 0.00, 0.12],
+    "EILB":                         [1.00, 0.00, 0.00],
+    "Hedge Fund 1":                 [0.00, 0.55, 0.45],
+    "Hedge Fund 2":                 [0.78, 0.13, 0.09],
+    "RE Bricks and Mortar":         [0.62, 0.38, 0.00],
+    "RE Debt":                      [0.99, 0.01, 0.00],
+    "PE Active":                    [0.15, 0.80, 0.05],
+    "PE Secondaries":               [0.32, 0.55, 0.13],
+    "PE Mezz":                      [0.30, 0.35, 0.35],
+    "Infrastructure Active":        [0.33, 0.66, 0.01],
+    "Infrastructure Debt":          [0.25, 0.70, 0.05],
+    "Multi Asset1":                 [0.92, 0.07, 0.01],
 }
+
+# Pass 25.0: Driver-of-gap + action status/plan from the framework spreadsheet.
+# Single source of truth for the cockpit "Key drivers" chips, A.I. Observations
+# "Active breaches" rewrite, and Action Tracker Kanban cards.
+# action_status ∈ {"No initiative", "Planned / TBD", "In progress", "N/A"}
+STRATEGY_REAL_DATA = {
+    "EQ Developed Markets": {
+        "driver":   "Opaque LO funds; non-core PE without fundamental metrics",
+        "chips":    ["LO funds", "non-core PE", "fundamentals"],
+        "status":   "No initiative",
+        "action":   "",
+    },
+    "EQ Emerging Markets": {
+        "driver":   "Opaque LO funds",
+        "chips":    ["LO funds"],
+        "status":   "No initiative",
+        "action":   "",
+    },
+    "FI Active": {
+        "driver":   "No lookthrough on macro / credit EFMs",
+        "chips":    ["UPC", "macro EFMs", "credit EFMs"],
+        "status":   "No initiative",
+        "action":   "",
+    },
+    "HY Credit": {
+        "driver":   "Missing fund-level metrics (country-sector, tranche type etc.)",
+        "chips":    ["fund metrics", "country-sector", "tranche type"],
+        "status":   "No initiative",
+        "action":   "",
+    },
+    "MAARS": {
+        "driver":   "No lookthrough on macro EFMs",
+        "chips":    ["UPC", "macro EFMs"],
+        "status":   "N/A",
+        "action":   "EFM sleeve to be closed",
+    },
+    "EILB": {
+        "driver":   "",
+        "chips":    [],
+        "status":   "N/A",
+        "action":   "",
+    },
+    "Hedge Fund 1": {  # takes MA's row from spreadsheet
+        "driver":   "Missing metrics",
+        "chips":    ["metrics"],
+        "status":   "In progress",
+        "action":   "Engaging data vendor to collect fund-level data from managers' PDF reports",
+    },
+    "Hedge Fund 2": {  # no spreadsheet mapping — leave as no initiative
+        "driver":   "Missing metrics",
+        "chips":    ["metrics"],
+        "status":   "No initiative",
+        "action":   "",
+    },
+    "RE Bricks and Mortar": {
+        "driver":   "Missing metrics",
+        "chips":    ["metrics"],
+        "status":   "No initiative",
+        "action":   "",
+    },
+    "RE Debt": {  # maps to RE Credit in spreadsheet
+        "driver":   "",
+        "chips":    [],
+        "status":   "N/A",
+        "action":   "",
+    },
+    "PE Active": {
+        "driver":   "Missing metrics",
+        "chips":    ["metrics"],
+        "status":   "In progress",
+        "action":   "Existing initiative to improve DICI cashflow coverage metrics",
+    },
+    "PE Secondaries": {  # maps to PSL
+        "driver":   "CI vehicles w/o lookthrough; DICIs with missing T&Cs, fundamental metrics",
+        "chips":    ["CI: UPC", "DICI: T&Cs", "fundamentals"],
+        "status":   "No initiative",
+        "action":   "",
+    },
+    "PE Mezz": {
+        "driver":   "CI vehicles w/o lookthrough; DICIs with missing T&Cs, fundamental metrics",
+        "chips":    ["CI: UPC", "DICI: T&Cs", "fundamentals"],
+        "status":   "No initiative",
+        "action":   "",
+    },
+    "Infrastructure Active": {
+        "driver":   "Fund route",
+        "chips":    ["fund route"],
+        "status":   "In progress",
+        "action":   "Engaging external parties to collect operating metrics from larger subset of DICIs, in phases. Target: 80% coverage, TBD",
+    },
+    "Infrastructure Debt": {
+        "driver":   "Fund route",
+        "chips":    ["fund route"],
+        "status":   "Planned / TBD",
+        "action":   "TBD — prioritisation of Infra Active data collection",
+    },
+    "Multi Asset1": {  # unchanged — no spreadsheet mapping
+        "driver":   "Missing metrics",
+        "chips":    ["metrics"],
+        "status":   "No initiative",
+        "action":   "",
+    },
+}
+
+# Pass 25.4: exposure targets taken verbatim from the framework spreadsheet.
+# Format: sub_strategy_name -> (cum_pct, red_pct).  Used by the post-processor
+# in generate_all_data to override the multinomial-sampled values with exact
+# numbers so the dashboard matches the spreadsheet within ±0.1%.
+# Strategies set to None retain their TIER_MIX-driven multinomial values.
+EXPOSURE_TARGETS = {
+    "EQ Developed Markets":   (0.17, 0.06),
+    "EQ Emerging Markets":    (0.04, 0.02),
+    "FI Active":              (0.05, 0.05),
+    "HY Credit":              (0.54, 0.54),
+    "MAARS":                  (0.11, 0.11),
+    "EILB":                   (0.00, 0.00),
+    "Hedge Fund 1":           (1.00, 0.50),
+    "Hedge Fund 2":           None,           # no spreadsheet mapping
+    "RE Bricks and Mortar":   (0.40, 0.00),
+    "RE Debt":                (0.02, 0.00),
+    "PE Active":              (0.74, 0.12),
+    "PE Secondaries":         (0.59, 0.15),
+    "PE Mezz":                (0.67, 0.34),
+    "Infrastructure Active":  (0.67, 0.03),
+    "Infrastructure Debt":    (0.81, 0.09),
+    "Multi Asset1":           None,           # no spreadsheet mapping
+}
+
+# Pass 25.13: per-Strategy portfolio MV share. Solved via LP to make the
+# Total Portfolio land on Red 2.7% and Amber + Red 19.2% with the
+# strategy-level exposures locked by EXPOSURE_TARGETS. Each value is the
+# strategy's fraction of the TOTAL portfolio MV.
+STRATEGY_MV_WEIGHTS = {
+    "EQ Developed Markets":  0.1144,
+    "EQ Emerging Markets":   0.0667,
+    "FI Active":             0.1564,
+    "HY Credit":             0.0038,
+    "MAARS":                 0.0048,
+    "EILB":                  0.0932,
+    "Hedge Fund 1":          0.0039,
+    "Hedge Fund 2":          0.0302,
+    "RE Bricks and Mortar":  0.1284,
+    "RE Debt":               0.0835,
+    "PE Active":             0.0048,
+    "PE Secondaries":        0.0047,
+    "PE Mezz":               0.0043,
+    "Infrastructure Active": 0.0815,
+    "Infrastructure Debt":   0.0048,
+    "Multi Asset1":          0.2147,
+}
+
 
 # ── Total Portfolio aggregate limits (Pass 24.1) ─────────────────────────
 # Hard-coded policy limits at the TOTAL portfolio level. Used by the two
@@ -971,6 +1125,20 @@ def _load_data_from_excel(filepath):
            for _, r in sub_strat_agg.iterrows()]
     sub_strat_agg["breach_reason"]    = [t[0] for t in _ra]
     sub_strat_agg["suggested_action"] = [t[1] for t in _ra]
+
+    # Pass 25.2: real spreadsheet data — driver-of-gap + action status + plan text.
+    sub_strat_agg["breach_driver"]    = sub_strat_agg["sub_strategy_name"].map(
+        lambda n: STRATEGY_REAL_DATA.get(n, {}).get("driver", "")
+    )
+    sub_strat_agg["driver_chips"]     = sub_strat_agg["sub_strategy_name"].map(
+        lambda n: list(STRATEGY_REAL_DATA.get(n, {}).get("chips", []))
+    )
+    sub_strat_agg["action_status"]    = sub_strat_agg["sub_strategy_name"].map(
+        lambda n: STRATEGY_REAL_DATA.get(n, {}).get("status", "")
+    )
+    sub_strat_agg["action_plan_text"] = sub_strat_agg["sub_strategy_name"].map(
+        lambda n: STRATEGY_REAL_DATA.get(n, {}).get("action", "")
+    )
 
     # Pass 20: synthesize stress_loss_stagflation if the Excel template doesn't carry it
     if "stress_loss_stagflation" not in instruments_df.columns:
@@ -1210,6 +1378,133 @@ def generate_all_data(_tier_mix_sig: str = ""):
     instruments_df = pd.DataFrame(instr_rows)
     audit_df       = pd.DataFrame(audit_rows)
 
+    # ── Pass 25.4: exact-exposure post-processor ─────────────────────────────
+    # Override portfolio tiers + MVs so each strategy's MV-weighted A+R% and Red%
+    # exactly match the spreadsheet targets. Bypasses multinomial variance.
+    # Skips strategies whose EXPOSURE_TARGETS entry is None.
+    def _enforce_exact_exposures(portfolios_df, instruments_df):
+        import numpy as _np
+        for sub_name, target in EXPOSURE_TARGETS.items():
+            if target is None:
+                continue
+            cum_target, red_target = target
+            green_target = max(0.0, 1.0 - cum_target)
+            amber_target = max(0.0, cum_target - red_target)
+
+            mask = portfolios_df["sub_strategy_name"] == sub_name
+            if not mask.any():
+                continue
+            idx = portfolios_df.index[mask].tolist()
+            n   = len(idx)
+            total_strategy_mv = float(portfolios_df.loc[idx, "mv"].sum())
+            if total_strategy_mv <= 0:
+                continue
+
+            # Decide how many portfolios per tier. Floor by 1 if the target > 0.
+            n_red = max(1, int(round(n * red_target)))   if red_target   > 0 else 0
+            n_green = max(1, int(round(n * green_target))) if green_target > 0 else 0
+            n_amber = n - n_red - n_green
+            if n_amber < 0:  # rounding overshoot — pull one off the largest tier
+                if n_red >= n_green: n_red -= 1
+                else: n_green -= 1
+                n_amber = 0
+            if amber_target == 0:
+                # No Amber wanted — re-balance into Green / Red.
+                if n_amber > 0:
+                    if n_green >= n_red: n_green += n_amber
+                    else: n_red += n_amber
+                    n_amber = 0
+            elif n_amber == 0 and amber_target > 0:
+                # Need at least 1 Amber.
+                if n_green > 1:
+                    n_green -= 1; n_amber = 1
+                elif n_red > 1:
+                    n_red -= 1; n_amber = 1
+
+            # Sort portfolio rows in this strategy by their CURRENT MV (desc),
+            # then assign the n_red largest to Red, next n_amber to Amber, rest Green.
+            sub_df = portfolios_df.loc[idx].sort_values("mv", ascending=False)
+            sorted_idx = sub_df.index.tolist()
+            red_idx   = sorted_idx[:n_red]
+            amber_idx = sorted_idx[n_red:n_red + n_amber]
+            green_idx = sorted_idx[n_red + n_amber:]
+
+            # Set tier labels.
+            for i in red_idx:   portfolios_df.at[i, "tier"] = "Red"
+            for i in amber_idx: portfolios_df.at[i, "tier"] = "Amber"
+            for i in green_idx: portfolios_df.at[i, "tier"] = "Green"
+
+            # Scale MVs within each tier so the MV-weighted percentages exactly
+            # hit (red_target, amber_target, green_target). Each tier's
+            # portfolios get a uniform multiplier.
+            for tier_name, tier_idx, tier_target in [
+                ("Red",   red_idx,   red_target),
+                ("Amber", amber_idx, amber_target),
+                ("Green", green_idx, green_target),
+            ]:
+                if not tier_idx:
+                    continue
+                want_mv = tier_target * total_strategy_mv
+                cur_mv  = float(portfolios_df.loc[tier_idx, "mv"].sum())
+                if cur_mv > 0:
+                    scale = want_mv / cur_mv
+                else:
+                    # All MVs were zero — distribute evenly (rare).
+                    scale = 0
+                    per = want_mv / len(tier_idx)
+                    for i in tier_idx:
+                        portfolios_df.at[i, "mv"] = round(per, 2)
+                if scale:
+                    for i in tier_idx:
+                        portfolios_df.at[i, "mv"] = round(portfolios_df.at[i, "mv"] * scale, 2)
+
+            # Propagate the tier + MV scaling into the instruments. Each
+            # instrument inherits its portfolio's tier; MVs scale uniformly per
+            # portfolio so the per-portfolio MV stays consistent.
+            new_pf_mv_lookup = dict(zip(portfolios_df.loc[idx, "portfolio_id"],
+                                        portfolios_df.loc[idx, "mv"]))
+            new_tier_lookup  = dict(zip(portfolios_df.loc[idx, "portfolio_id"],
+                                        portfolios_df.loc[idx, "tier"]))
+            inst_mask = instruments_df["portfolio_id"].isin(new_pf_mv_lookup.keys())
+            for pid, new_mv in new_pf_mv_lookup.items():
+                pmask = instruments_df["portfolio_id"] == pid
+                if not pmask.any():
+                    continue
+                cur_pf_mv = float(instruments_df.loc[pmask, "mv"].sum())
+                if cur_pf_mv > 0:
+                    instr_scale = new_mv / cur_pf_mv
+                    instruments_df.loc[pmask, "mv"] = (instruments_df.loc[pmask, "mv"] * instr_scale).round(2)
+                instruments_df.loc[pmask, "tier"] = new_tier_lookup[pid]
+        return portfolios_df, instruments_df
+
+    portfolios_df, instruments_df = _enforce_exact_exposures(portfolios_df, instruments_df)
+
+    # ── Pass 25.13: Total Portfolio MV-share post-processor ─────────────────
+    # Scale each strategy's total MV so the AUM-weighted portfolio Red% and
+    # Amber+Red% match the targets (2.7% / 19.2%). Within-strategy splits set
+    # by enforce_exact_exposures are preserved.
+    def _apply_portfolio_weights(portfolios_df, instruments_df):
+        try:
+            total_target = float(portfolios_df["mv"].sum())   # keep portfolio £ size constant
+        except Exception:
+            total_target = 100000.0
+        for sub_name, share in STRATEGY_MV_WEIGHTS.items():
+            mask = portfolios_df["sub_strategy_name"] == sub_name
+            if not mask.any():
+                continue
+            cur_mv  = float(portfolios_df.loc[mask, "mv"].sum())
+            want_mv = total_target * float(share)
+            if cur_mv <= 0:
+                continue
+            scale = want_mv / cur_mv
+            portfolios_df.loc[mask, "mv"] = (portfolios_df.loc[mask, "mv"] * scale).round(2)
+            pids = portfolios_df.loc[mask, "portfolio_id"].tolist()
+            i_mask = instruments_df["portfolio_id"].isin(pids)
+            instruments_df.loc[i_mask, "mv"] = (instruments_df.loc[i_mask, "mv"] * scale).round(2)
+        return portfolios_df, instruments_df
+    portfolios_df, instruments_df = _apply_portfolio_weights(portfolios_df, instruments_df)
+
+
     # Compute instrument MV % of parent strategy (exposure only)
     strat_totals = portfolios_df.groupby("strategy_id")["mv"].sum().rename("strategy_total_mv")
     instruments_df = instruments_df.merge(strat_totals, on="strategy_id")
@@ -1387,47 +1682,60 @@ def generate_all_data(_tier_mix_sig: str = ""):
             })
     sub_history_df = pd.DataFrame(sub_hist_rows)
 
-    # ── action_items_df: synthetic transparency action plans (Pass 3b) ─────────
-    # Drives the new Action Tracker tab. Deterministic generation so cards stay
-    # stable across reruns. Each row = one initiative to improve transparency
-    # somewhere in the portfolio.
-    # Pass 14: templates now live at module scope (ACTION_TEMPLATES) and carry
-    # owner_team + impact_pp. Owner is per-action, NOT per-strategy.
+    # ── action_items_df: rebuilt from STRATEGY_REAL_DATA (Pass 25.7) ──────────
+    # One card per Strategy. Status, driver and plan text come from the
+    # spreadsheet; owner team is mapped from Strategy Group.
     _now = datetime.now()
     _action_rows = []
-    _STRATEGY_NAMES = list(strategies_df["name"])
-    _ai_idx = 1
-    _seed_state = random.getstate()
-    random.seed(2026_06_01)
-    for tmpl_i, (title_tpl, reason, status, days_offset, last_note, owner_team, impact_pp) in enumerate(ACTION_TEMPLATES):
-        sname  = _STRATEGY_NAMES[tmpl_i % len(_STRATEGY_NAMES)]
-        # If template references {strat}, fill in a child Strategy name for flavour
-        _kids = sub_strategies_df[sub_strategies_df["strategy_id"]==
-                                  strategies_df.set_index("name").loc[sname, "strategy_id"]]
-        _kid_name = _kids.iloc[0]["sub_strategy_name"] if len(_kids) else sname
-        title = title_tpl.replace("{strat}", _kid_name)
-        # Target date — Planned/In Progress in the future, Done in the past
-        if status == "Done":
-            tgt = (_now - timedelta(days=days_offset)).date()
-            last_upd = (_now - timedelta(days=days_offset - 5)).date()
-        else:
-            tgt = (_now + timedelta(days=days_offset)).date()
-            last_upd = (_now - timedelta(days=random.randint(1, 14))).date()
+    _OWNER_BY_GROUP = {
+        "EQ Active":        "Strategy Ops",
+        "Fixed Income":     "Strategy Ops",
+        "Hedge Fund":       "Deal Team & Legal",
+        "Real Estate":      "Deal Team & Legal",
+        "Private Equities": "Deal Team & Legal",
+        "Infrastructure":   "Deal Team & Legal",
+        "Multi-Asset":      "CISD",
+    }
+    _DAYS_BY_STATUS = {
+        "In progress":    60,
+        "Planned / TBD":  120,
+        "No initiative":  180,
+        "N/A":            -1,   # excluded from Kanban
+    }
+    _idx = 1
+    for _, sub in sub_strategies_df.iterrows():
+        sub_name = sub["sub_strategy_name"]
+        real = STRATEGY_REAL_DATA.get(sub_name)
+        if real is None:
+            continue
+        status = real.get("status", "")
+        if status in ("", "N/A"):
+            continue                    # N/A strategies don't appear on the board
+        driver_text  = real.get("driver", "") or "—"
+        action_text  = real.get("action", "") or ""
+        days_offset  = _DAYS_BY_STATUS.get(status, 90)
+        owner_team   = _OWNER_BY_GROUP.get(sub["strategy_name"], "Strategy Ops")
+        if not action_text:
+            # No initiative — surface the gap and the suggested next step
+            if status == "No initiative":
+                action_text = "No active initiative — driver of gap awaiting prioritisation."
+            elif status == "Planned / TBD":
+                action_text = "Planned — scope and timing TBD."
+
         _action_rows.append({
-            "action_id":         f"A{_ai_idx:03d}",
-            "title":             title,
-            "strategy_group":    sname,
-            "strategy_name":     _kid_name,
+            "action_id":         f"A{_idx:03d}",
+            "title":             f"{sub_name} — improve transparency",
+            "strategy_group":    sub["strategy_name"],
+            "strategy_name":     sub_name,
             "owner_team":        owner_team,
-            "impact_pp":         impact_pp,
+            "impact_pp":         0.0,
             "status":            status,
-            "linked_reason":     reason,
-            "target_date":       tgt,
-            "last_update":       last_upd,
-            "last_update_note":  last_note,
+            "linked_reason":     driver_text,
+            "target_date":       (_now + timedelta(days=days_offset)).date(),
+            "last_update":       (_now - timedelta(days=14)).date(),
+            "last_update_note":  action_text,
         })
-        _ai_idx += 1
-    random.setstate(_seed_state)
+        _idx += 1
     action_items_df = pd.DataFrame(_action_rows)
 
     # ── transparency_rating: High / Medium / Low per Strategy ─────────────────
@@ -1487,6 +1795,20 @@ def generate_all_data(_tier_mix_sig: str = ""):
            for _, r in sub_strat_agg.iterrows()]
     sub_strat_agg["breach_reason"]    = [t[0] for t in _ra]
     sub_strat_agg["suggested_action"] = [t[1] for t in _ra]
+
+    # Pass 25.2: real spreadsheet data — driver-of-gap + action status + plan text.
+    sub_strat_agg["breach_driver"]    = sub_strat_agg["sub_strategy_name"].map(
+        lambda n: STRATEGY_REAL_DATA.get(n, {}).get("driver", "")
+    )
+    sub_strat_agg["driver_chips"]     = sub_strat_agg["sub_strategy_name"].map(
+        lambda n: list(STRATEGY_REAL_DATA.get(n, {}).get("chips", []))
+    )
+    sub_strat_agg["action_status"]    = sub_strat_agg["sub_strategy_name"].map(
+        lambda n: STRATEGY_REAL_DATA.get(n, {}).get("status", "")
+    )
+    sub_strat_agg["action_plan_text"] = sub_strat_agg["sub_strategy_name"].map(
+        lambda n: STRATEGY_REAL_DATA.get(n, {}).get("action", "")
+    )
 
     # ── investment_bucket: 5-cut DQ dimension ──────────────────────────────────
     # Mandate folded into DI; Large/Small split only for PRIVATE investments
@@ -1645,15 +1967,19 @@ def _cockpit_widget_html(row, expanded=True, show_investigate=True):
     max_util = max(red_util, cum_util)
 
     # Three-state traffic light: OK (<80%), Alert (>=80%, not breaching), Breach (>100%)
+    # Pass 26: subtle background tint so ALERT and BREACH stand out at a glance.
     if any_breach:
         pill_text, pill_color, light_color = "BREACH", "var(--breach-text)", "var(--color-breach)"
         border_color, border_width = "var(--color-red-fill)", "2px"
+        bg_tint = "#FEF2F2"      # very light pink — BREACH
     elif max_util >= 80:
         pill_text, pill_color, light_color = "ALERT", "var(--alert-text)", "var(--color-alert)"
         border_color, border_width = "var(--alert-border)", "2px"
+        bg_tint = "#FFFBEB"      # very light amber — ALERT
     else:
         pill_text, pill_color, light_color = "OK", "var(--ok-text)", "var(--color-ok)"
         border_color, border_width = "var(--color-ok)", "2px"
+        bg_tint = "var(--bg-surface)"  # default surface — OK
 
     def _row(label, util, expo=None, limit=None):
         if util > 100:
@@ -1681,12 +2007,17 @@ def _cockpit_widget_html(row, expanded=True, show_investigate=True):
     #  expanded   → min-height:230px + flex column (so the breach footer docks to the bottom)
     #  collapsed  → tight padding, no min-height, so all 16 cards fit above the fold
     if expanded:
-        container_style = (f'background:var(--bg-surface);border:{border_width} solid {border_color};'
+        container_style = (f'background:{bg_tint};border:{border_width} solid {border_color};'
                            f'border-radius:8px;padding:10px 12px;'
                            f'display:flex;flex-direction:column;min-height:230px;')
     else:
-        container_style = (f'background:var(--bg-surface);border:{border_width} solid {border_color};'
-                           f'border-radius:8px;padding:8px 12px;')
+        # Pass 25.11: min-height on the collapsed state so cards with single-line
+        # Strategy names match the height of cards whose names wrap to 2 lines
+        # (e.g. EQ Developed Markets). 56px ≈ 2 lines of 14.5px/1.3 + 16px padding.
+        container_style = (f'background:{bg_tint};border:{border_width} solid {border_color};'
+                           f'border-radius:8px;padding:8px 12px;'
+                           f'display:flex;flex-direction:column;justify-content:center;'
+                           f'min-height:56px;')
 
     # Header row — always visible (name + status pill). The body (util rows +
     # footer + driver chip) is shown only when `expanded` is True, so the
@@ -1704,39 +2035,72 @@ def _cockpit_widget_html(row, expanded=True, show_investigate=True):
         f'style="font-size:11.5px;color:{pill_color};font-weight:800;letter-spacing:0.06em;cursor:help;">{pill_text}</span>'
         f'</div></div>'
     )
-    # Pass 24: build the "Key drivers" chip block from per-Strategy top missing
-    # fields. Outlined-teal chip style consistent with the Action Plans missing-
-    # field chips so the visual language matches across the dashboard.
-    _tags = row.get("top_missing_fields", []) or []
-    if isinstance(_tags, list) and len(_tags) > 0:
-        _chips = "".join(
-            f'<span style="display:inline-block;border:1px solid {_tag_color(t)};color:{_tag_color(t)};'
+    # Pass 25.4: render short driver-of-gap tag chips (UPC, fund metrics, T&Cs etc.)
+    # with stable per-tag colors via _tag_color() hash. Same chip text always gets
+    # the same color across strategies so the user can spot recurring drivers.
+    # Status pill below the chip row.
+    _chips_list = row.get("driver_chips", []) or []
+    _status     = str(row.get("action_status", "") or "").strip()
+    _STATUS_COLORS = {
+        "No initiative":  "#B91C1C",     # red
+        "Planned / TBD":  "#B45309",     # amber-brown
+        "In progress":    "#15803D",     # green
+        "N/A":            "#475569",     # slate
+    }
+    _status_color = _STATUS_COLORS.get(_status, "#475569")
+
+    if isinstance(_chips_list, list) and len(_chips_list) > 0:
+        _chips_html = "".join(
+            f'<span style="display:inline-block;border:1px solid {_tag_color(c)};color:{_tag_color(c)};'
             f'background:transparent;padding:2px 8px;border-radius:10px;font-size:11px;'
-            f'font-weight:600;margin:0 4px 4px 0;white-space:nowrap;">{t}</span>'
-            for t in _tags[:3]
-        )
-        _drivers_block = (
-            f'<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border-default);">'
-            f'<div>{_chips}</div>'
-            f'</div>'
+            f'font-weight:600;margin:0 4px 4px 0;white-space:nowrap;">{c}</span>'
+            for c in _chips_list[:4]
         )
     else:
-        _drivers_block = (
+        _chips_html = ('<span style="font-size:11.5px;color:var(--text-subtle);font-style:italic;">'
+                       'No driver recorded.</span>')
+
+    if _status:
+        _status_pill = (
+            f'<div style="margin-top:4px;font-size:10.5px;letter-spacing:0.04em;'
+            f'text-transform:uppercase;font-weight:700;color:{_status_color};">'
+            f'\u2022 {_status}</div>'
+        )
+    else:
+        _status_pill = ""
+
+    _drivers_block = (
+        f'<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border-default);">'
+        f'<div>{_chips_html}</div>'
+        f'{_status_pill}'
+        f'</div>'
+    )
+
+    if expanded:
+        # Pass 25.5: layout = util rows + chips-only block (flex:1) + bottom-docked
+        # status pill + breach-count footer. This aligns the status pill at the
+        # same vertical position on every widget regardless of chip wrap.
+
+        # The _drivers_block as built above already includes chips + status pill,
+        # but for bottom-alignment we want to split them. Use chips-only here.
+        _chips_only_block = (
             f'<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border-default);">'
-            f'<div style="font-size:12px;color:var(--text-subtle);font-style:italic;">No transparency gaps</div>'
+            f'<div>{_chips_html}</div>'
             f'</div>'
         )
 
-    if expanded:
-        # Full body: util rows + Key drivers chips + breach footer (docked to bottom).
         body = (
             f'<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border-default);'
             f'flex:1;display:flex;flex-direction:column;">'
             f'{_row("Red util %",   red_util, float(row.get("Red_pct", 0))*100, float(row.get("threshold_red", 0))*100)}'
             f'{_row("Amber + Red util %", cum_util, float(row.get("cum_pct", 0))*100, float(row.get("threshold_cum", 0))*100)}'
-            f'{_drivers_block}'
-            f'<div style="margin-top:auto;padding-top:6px;border-top:1px dashed var(--border-default);font-size:12px;color:var(--text-muted);line-height:1.45;">'
-            f'No. of breaches past 1 year: <b style="color:var(--text-primary);">{int(row.get("breaches_last_12mo", 0))}</b>'
+            f'{_chips_only_block}'
+            # Bottom-docked: status pill + breach-count footer
+            f'<div style="margin-top:auto;padding-top:8px;">'
+            f'  {_status_pill}'
+            f'  <div style="margin-top:6px;padding-top:6px;border-top:1px dashed var(--border-default);font-size:12px;color:var(--text-muted);line-height:1.45;">'
+            f'    No. of breaches past 1 year: <b style="color:var(--text-primary);">{int(row.get("breaches_last_12mo", 0))}</b>'
+            f'  </div>'
             f'</div>'
             f'</div>'
         )
@@ -2071,24 +2435,40 @@ def _ai_observations_html(strat_agg, sub_strat_agg, portfolios_df, history_df, s
                     f'</div></div>'
                 )
 
-    # ── Active breaches + drivers (collapsed) ────────────────────────────────
+    # ── Active breaches + initiative status (collapsed) ────────────────────
+    # Pass 25.6: surface the spreadsheet narrative — total breaches, how many
+    # have no current initiative, and call out the highest-impact strategy that
+    # IS being actively remediated (Infra Active for the meeting demo).
     breaching = sub_strat_agg[sub_strat_agg["any_breach"]]
     if len(breaching) > 0:
-        names = breaching["sub_strategy_name"].tolist()
+        n_total = len(breaching)
+        no_init = breaching[breaching["action_status"] == "No initiative"]
+        in_prog = breaching[breaching["action_status"] == "In progress"]
+        planned = breaching[breaching["action_status"] == "Planned / TBD"]
+
         body_b = (
-            f'<b>{len(breaching)}</b> {"strategy" if len(breaching)==1 else "strategies"} in breach: '
-            + ", ".join(f'<b>{n}</b>' for n in names) + '.'
+            f'<b>{n_total}</b> {"strategy" if n_total==1 else "strategies"} in breach.'
         )
-        for _, r in breaching.iterrows():
-            bits = []
-            if bool(r.get("red_breach")):
-                bits.append(f'Red limit ({float(r["red_utilisation"])*100:.0f}%)')
-            if bool(r.get("cum_breach")):
-                bits.append(f'Amber + Red limit ({float(r["cum_utilisation"])*100:.0f}%)')
-            limits_clause = " and ".join(bits) if bits else "limit"
-            body_b += f'<br/><b>{r["sub_strategy_name"]}</b>: {limits_clause}.'
-            if r.get("breach_reason"):
-                body_b += f' Driver: <i>{r["breach_reason"]}</i>.'
+        if len(no_init) > 0:
+            body_b += (
+                f' <b style="color:var(--breach-text);">{len(no_init)}</b> with '
+                f'<b>no current initiative</b>: '
+                + ", ".join(f'<b>{n}</b>' for n in no_init["sub_strategy_name"].tolist())
+                + '.'
+            )
+        if len(in_prog) > 0:
+            ip_names = ", ".join(f'<b>{n}</b>' for n in in_prog["sub_strategy_name"].tolist())
+            body_b += (
+                f' <b style="color:var(--color-ok);">{len(in_prog)}</b> with an '
+                f'<b>active initiative</b>: {ip_names}.'
+            )
+        if len(planned) > 0:
+            pl_names = ", ".join(f'<b>{n}</b>' for n in planned["sub_strategy_name"].tolist())
+            body_b += (
+                f' <b style="color:var(--color-alert);">{len(planned)}</b> '
+                f'<b>planned / TBD</b>: {pl_names}.'
+            )
+
         more_sections.append(
             f'<div style="margin-bottom:6px;">'
             f'<div class="metric-label" style="margin-bottom:2px;color:var(--breach-text);">Active breaches</div>'
@@ -2268,8 +2648,8 @@ def page_portfolio_overview(strat_agg, sub_strat_agg, portfolios_df, history_df,
             f'<div style="font-size:14px;color:var(--text-soft);line-height:1.6;margin:-8px 0 14px 0;padding-left:15px;">'
             f'Total intransparency at <b style="color:var(--text-primary);">{_util_total*100:.0f}%</b> of the portfolio limit \u2014 '
             f'<b style="color:{_rt_color};">{_rt_status}</b>.<br/>'
-            f'Portfolio is <b style="color:var(--color-ok);">{_w_green_pct:.1f}% transparent</b> (Green); '
-            f'<b style="color:var(--breach-text);">{_w_cum_pct:.1f}% intransparent</b> (Amber + Red).'
+            f'Portfolio is <b style="color:var(--text-primary);">{_w_green_pct:.1f}%</b> transparent (Green); '
+            f'<b style="color:var(--text-primary);">{_w_cum_pct:.1f}%</b> intransparent (Amber + Red).'
             f'</div>',
             unsafe_allow_html=True,
         )
@@ -2300,7 +2680,8 @@ def page_portfolio_overview(strat_agg, sub_strat_agg, portfolios_df, history_df,
                                            history_df, sub_history_df, instruments_df),
                     unsafe_allow_html=True)
 
-    st.markdown(_section_band("Active Strategies – Intransparency Limits Utilisation", "Each Strategy's utilisation against its own limits."), unsafe_allow_html=True)
+    st.markdown('<div style="height:14px;"></div>', unsafe_allow_html=True)
+    st.markdown(_section_band("Active Strategies – Intransparency Limits Utilisation", "Each Strategy\'s utilisation against its own limits."), unsafe_allow_html=True)
     st.markdown(
         f'<p style="font-size:13.5px;color:{breach_color};margin:-6px 0 12px;">{breach_part}</p>',
         unsafe_allow_html=True,
@@ -2310,6 +2691,18 @@ def page_portfolio_overview(strat_agg, sub_strat_agg, portfolios_df, history_df,
     # Widgets remain whole-clickable LINKS (Pass 4 design). The Expand/Collapse
     # all button toggles whether the BODY of each widget shows — useful when
     # scanning 16+ widgets to find the breaches.
+    # Pass 26.1: revert the Expand/Collapse-all button to the default look but
+    # bump the border thickness so it stands out more.
+    st.markdown("""
+    <style>
+    div[data-testid="stHorizontalBlock"] div.st-key-toggle_widgets button {
+      border: 2px solid var(--text-primary) !important;
+    }
+    div[data-testid="stHorizontalBlock"] div.st-key-toggle_widgets button:hover {
+      border-color: var(--accent) !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
     _, btn_col = st.columns([8, 1.1])
     with btn_col:
         btn_label = "Collapse all" if st.session_state["widgets_expanded"] else "Expand all"
@@ -2339,7 +2732,7 @@ def page_portfolio_overview(strat_agg, sub_strat_agg, portfolios_df, history_df,
             '<div style="font-size:11px;color:var(--text-subtle);">'
             + str(n) + ' ' + ("strategy" if n == 1 else "strategies") + '</div></div>'
         )
-        grid = '<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));gap:10px;margin-bottom:4px;">'
+        grid = '<div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(240px, 1fr));gap:10px;margin-bottom:4px;">'
         for _, row in children.iterrows():
             grid += _cockpit_widget_html(row, expanded=expanded)
         grid += '</div>'
@@ -2596,9 +2989,25 @@ def page_portfolio_overview(strat_agg, sub_strat_agg, portfolios_df, history_df,
                 f'<th style="padding:10px 12px;border-radius:6px 0 0 0;">{cut_label}</th>'
                 f'<th style="padding:10px 12px;text-align:right;">Contribution to TP</th>'
                 f'<th style="padding:10px 12px;text-align:right;">Share of {_tier_disp}</th>'
-                f'<th style="padding:10px 12px;text-align:right;border-radius:0 6px 0 0;">No. of Portfolios</th>'
+                f'<th style="padding:10px 12px;text-align:left;border-radius:0 6px 0 0;">Issue tags</th>'
                 '</tr></thead><tbody>'
             )
+            # Pass 26.2: build issue-tag chips lookup so we can render the
+            # spreadsheet drivers inline. Only meaningful when cut by Strategy;
+            # other cuts (Investment Type, asset_type) get a blank cell.
+            def _row_chips(name):
+                if cut_col != "sub_strategy_name":
+                    return ""
+                meta = STRATEGY_REAL_DATA.get(str(name), {})
+                chips = meta.get("chips", []) or []
+                if not chips:
+                    return '<span style="font-size:11.5px;color:var(--text-subtle);font-style:italic;">—</span>'
+                return "".join(
+                    f'<span style="display:inline-block;border:1px solid {_tag_color(c)};color:{_tag_color(c)};'
+                    f'background:transparent;padding:2px 8px;border-radius:10px;font-size:11px;'
+                    f'font-weight:600;margin:0 4px 4px 0;white-space:nowrap;">{c}</span>'
+                    for c in chips[:3]
+                )
             for _, r in non_zero.iterrows():
                 wt = "400"  # uniform weight; the contribution % column already encodes magnitude
                 table_html += (
@@ -2606,7 +3015,7 @@ def page_portfolio_overview(strat_agg, sub_strat_agg, portfolios_df, history_df,
                     f'<td style="padding:9px 12px;color:var(--text-primary);font-weight:{wt};">{r[cut_col]}</td>'
                     f'<td style="padding:9px 12px;text-align:right;color:var(--text-primary);font-variant-numeric:tabular-nums;font-weight:500;">{r["contrib_pct"]:.2f}%</td>'
                     f'<td style="padding:9px 12px;text-align:right;color:var(--text-soft);font-variant-numeric:tabular-nums;">{r["pct_of_tier"]:.0f}%</td>'
-                    f'<td style="padding:9px 0;text-align:right;color:var(--text-soft);font-variant-numeric:tabular-nums;">{int(r["count"])}</td>'
+                    f'<td style="padding:9px 12px;text-align:left;">{_row_chips(r[cut_col])}</td>'
                     f'</tr>'
                 )
             # The "(no contribution)" catch-all row was removed — it was making the
@@ -2935,9 +3344,25 @@ def page_strategy_detail(strat_agg, sub_strat_agg, portfolios_df, instruments_df
                 f'<th style="padding:10px 12px;border-radius:6px 0 0 0;">{cut_label}</th>'
                 f'<th style="padding:10px 12px;text-align:right;">Contribution to TP</th>'
                 f'<th style="padding:10px 12px;text-align:right;">Share of {_tier_disp}</th>'
-                f'<th style="padding:10px 12px;text-align:right;border-radius:0 6px 0 0;">No. of Portfolios</th>'
+                f'<th style="padding:10px 12px;text-align:left;border-radius:0 6px 0 0;">Issue tags</th>'
                 '</tr></thead><tbody>'
             )
+            # Pass 26.2: build issue-tag chips lookup so we can render the
+            # spreadsheet drivers inline. Only meaningful when cut by Strategy;
+            # other cuts (Investment Type, asset_type) get a blank cell.
+            def _row_chips(name):
+                if cut_col != "sub_strategy_name":
+                    return ""
+                meta = STRATEGY_REAL_DATA.get(str(name), {})
+                chips = meta.get("chips", []) or []
+                if not chips:
+                    return '<span style="font-size:11.5px;color:var(--text-subtle);font-style:italic;">—</span>'
+                return "".join(
+                    f'<span style="display:inline-block;border:1px solid {_tag_color(c)};color:{_tag_color(c)};'
+                    f'background:transparent;padding:2px 8px;border-radius:10px;font-size:11px;'
+                    f'font-weight:600;margin:0 4px 4px 0;white-space:nowrap;">{c}</span>'
+                    for c in chips[:3]
+                )
             for _, r in non_zero.iterrows():
                 wt = "400"  # uniform weight; the contribution % column already encodes magnitude
                 table_html += (
@@ -2945,7 +3370,7 @@ def page_strategy_detail(strat_agg, sub_strat_agg, portfolios_df, instruments_df
                     f'<td style="padding:9px 12px;color:var(--text-primary);font-weight:{wt};">{r[cut_col]}</td>'
                     f'<td style="padding:9px 12px;text-align:right;color:var(--text-primary);font-variant-numeric:tabular-nums;font-weight:500;">{r["contrib_pct"]:.2f}%</td>'
                     f'<td style="padding:9px 12px;text-align:right;color:var(--text-soft);font-variant-numeric:tabular-nums;">{r["pct_of_tier"]:.0f}%</td>'
-                    f'<td style="padding:9px 0;text-align:right;color:var(--text-soft);font-variant-numeric:tabular-nums;">{int(r["count"])}</td>'
+                    f'<td style="padding:9px 12px;text-align:left;">{_row_chips(r[cut_col])}</td>'
                     f'</tr>'
                 )
             # The "(no contribution)" catch-all row was removed — see TP version above.
@@ -3387,9 +3812,14 @@ def page_instrument_detail(instruments_df):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 _STATUS_STYLE = {
-    "Planned":     ("var(--text-muted)",        "var(--bg-track)",  "var(--border-default)"),
-    "In Progress": ("#0E5A8A",                  "rgba(14,90,138,0.10)", "rgba(14,90,138,0.3)"),
-    "Done":        ("var(--color-ok)",          "rgba(39,174,96,0.10)",  "rgba(39,174,96,0.3)"),
+    # Pass 25.7: spreadsheet-aligned statuses
+    "No initiative":   ("#B91C1C",                  "rgba(185,28,28,0.08)",  "rgba(185,28,28,0.30)"),
+    "Planned / TBD":   ("#B45309",                  "rgba(180,83,9,0.08)",   "rgba(180,83,9,0.30)"),
+    "In progress":     ("#15803D",                  "rgba(21,128,61,0.08)",  "rgba(21,128,61,0.30)"),
+    # Legacy aliases kept for any back-compat callsite
+    "Planned":         ("var(--text-muted)",        "var(--bg-track)",  "var(--border-default)"),
+    "In Progress":     ("#0E5A8A",                  "rgba(14,90,138,0.10)", "rgba(14,90,138,0.3)"),
+    "Done":            ("var(--color-ok)",          "rgba(39,174,96,0.10)",  "rgba(39,174,96,0.3)"),
 }
 
 def _action_card_html(row):
@@ -3519,9 +3949,10 @@ def page_action_tracker(action_items_df, sub_strat_agg, sub_history_df):
         '</div>',
         unsafe_allow_html=True,
     )
-    statuses = ["Planned", "In Progress", "Done"]
-    col_planned, col_inprog, col_done = st.columns(3)
-    for col, status in zip([col_planned, col_inprog, col_done], statuses):
+    # Pass 25.7: Kanban now has 3 columns mirroring the spreadsheet pills.
+    statuses = ["No initiative", "Planned / TBD", "In progress"]
+    col_a, col_b, col_c = st.columns(3)
+    for col, status in zip([col_a, col_b, col_c], statuses):
         with col:
             n_in_col = int((aif["status"] == status).sum())
             fg = _STATUS_STYLE[status][0]
@@ -4063,35 +4494,92 @@ def page_glossary():
         st.markdown(html, unsafe_allow_html=True)
 
     # Single combined Intransparency Tiers card: data-requirements view +
-    # risk-modelling view, one row per tier.
+    # risk-modelling view + the information-needed table from the framework deck.
     _ok_badge = '<span style="color:var(--color-ok);font-weight:800;">✓</span>'
     _no_badge = '<span style="color:var(--breach-text);font-weight:800;">✗</span>'
 
-    def _tier_row(data_def, name_badge, sys_badge, risk_def):
-        return (
-            f'<div style="margin-bottom:6px;">{data_def}</div>'
-            f'<div style="font-size:12px;color:var(--text-subtle);text-transform:uppercase;'
-            f'letter-spacing:0.08em;font-weight:700;margin-top:4px;">Risk modelling view</div>'
-            f'<div style="margin-top:2px;">Name-level {name_badge} · Systematic {sys_badge} '
-            f'<span style="color:var(--text-soft);">— {risk_def}</span></div>'
+    def _subsection(title, color_var, items):
+        """Render a sub-section inside a tier row — an uppercase title in the
+        given accent colour followed by a bulleted list of items."""
+        bullets = "".join(
+            f'<li style="margin-bottom:2px;">{x}</li>' for x in items
         )
+        return (
+            f'<div style="font-size:11px;color:{color_var};text-transform:uppercase;'
+            f'letter-spacing:0.08em;font-weight:700;margin-top:8px;margin-bottom:2px;">{title}</div>'
+            f'<ul style="margin:0;padding-left:18px;color:var(--text-soft);'
+            f'line-height:1.45;">{bullets}</ul>'
+        )
+
+    def _tier_row(data_def, name_badge, sys_badge, risk_summary, info_items, mgmt_items):
+        return (
+            # Top: the one-line data definition
+            f'<div style="margin-bottom:6px;">{data_def}</div>'
+            # Risk modelling view (check/cross badges)
+            f'<div style="font-size:11px;color:var(--text-subtle);text-transform:uppercase;'
+            f'letter-spacing:0.08em;font-weight:700;margin-top:8px;">Risk modelling view</div>'
+            f'<div style="margin-top:2px;">Name-level {name_badge} · Systematic {sys_badge} '
+            f'<span style="color:var(--text-soft);">— {risk_summary}</span></div>'
+            # Core & important information
+            f'{_subsection("Core &amp; important information", "var(--accent)", info_items)}'
+            # Risk assessment & portfolio management
+            f'{_subsection("Risk assessment &amp; portfolio management", "var(--accent)", mgmt_items)}'
+        )
+
+    _green_info = [
+        "Instrument name and Market Value",
+        "Key instrument attributes (asset type, development status, coupon, maturity)",
+        ("Critical company metrics, updated recurring: 1× Earnings (e.g. EBITDA), "
+         "1× Leverage (e.g. LTV), 1× Cashflow Coverage (e.g. ICR)"),
+    ]
+    _green_mgmt = [
+        "In-depth beyond MTM stress — assess portfolio quality and likelihood of impairment.",
+        ("Assure Risk / Audit Comm on private-credit quality; brief GEC on name-level "
+         "sanctions exposure; size high-risk exposures under stress."),
+        "<b>Portfolio mgmt: name-level actions possible where there is conviction.</b>",
+    ]
+
+    _amber_info = [
+        "Country and sector exposure",
+        "High-level asset-type mix (e.g. VC vs buyout, 1L vs 2L loans, Core vs Core+)",
+        ("High-level mix of attributes and risk sensitivities (e.g. weighted-average "
+         "duration, OAS, coupon, development status)"),
+    ]
+    _amber_mgmt = [
+        "High-level macro scenario analysis (e.g. HHT, stagflation) — captures MTM impacts only.",
+        "Assumes all constituents in a country / sector are equally affected in stress.",
+        "<b>Portfolio mgmt: country / sector overlays possible; name-level actions not possible.</b>",
+    ]
+
+    _red_info = [
+        "<i>No reliable instrument- or portfolio-level information available.</i>",
+    ]
+    _red_mgmt = [
+        "Very high level — wide cone of inaccuracy for exposure and scenario analysis.",
+        ("Must assume non-transparent holdings mirror industry country / sector "
+         "exposure and perform in line with industry beta in stress."),
+        "<b>Portfolio mgmt: not possible to a large extent.</b>",
+    ]
 
     _section_card("Intransparency Tiers", [
         ("Green",
          _tier_row(
              "Fully transparent. All Amber and Green data requirements are satisfied.",
              _ok_badge, _ok_badge,
-             "good understanding of both systematic and name-level risk.")),
+             "good understanding of both systematic and name-level risk.",
+             _green_info, _green_mgmt)),
         ("Amber",
          _tier_row(
              "Amber data requirements satisfied; one or more Green requirements missing.",
              _no_badge, _ok_badge,
-             "good understanding of systematic risk, but poor understanding of name-level risk.")),
+             "good understanding of systematic risk, but poor understanding of name-level risk.",
+             _amber_info, _amber_mgmt)),
         ("Red",
          _tier_row(
              "At least one Amber data requirement missing.",
              _no_badge, _no_badge,
-             "poor understanding of both systematic and name-level risk.")),
+             "poor understanding of both systematic and name-level risk.",
+             _red_info, _red_mgmt)),
     ])
 
     _section_card("Exposure cards", [
@@ -4099,6 +4587,23 @@ def page_glossary():
          "% of portfolio MV in the Red tier, measured against the Red policy limit."),
         ("Amber + Red exposure",
          "% of portfolio MV in the Amber + Red tiers combined, measured against the cumulative policy limit."),
+    ])
+
+    # Pass 25.8: Action status pills used on Action Tracker + cockpit widgets
+    _section_card("Action status", [
+        ("No initiative",
+         '<b style="color:#B91C1C;">No initiative</b> — strategy is in breach but '
+         'no remediation work is under way. Highest-priority backlog item for the '
+         'next planning cycle.'),
+        ("Planned / TBD",
+         '<b style="color:#B45309;">Planned / TBD</b> — remediation acknowledged; '
+         'scope, owner, or sequencing still being worked out.'),
+        ("In progress",
+         '<b style="color:#15803D;">In progress</b> — active initiative under way '
+         '(e.g. data vendor engaged, external parties onboarding).'),
+        ("N/A",
+         '<b style="color:#475569;">N/A</b> — status not applicable (e.g. sleeve '
+         'being closed, no exposure to track).'),
     ])
 
     _section_card("Utilisation status", [
