@@ -2164,7 +2164,7 @@ def _ai_observations_html(strat_agg, sub_strat_agg, portfolios_df, history_df, s
 def page_portfolio_overview(strat_agg, sub_strat_agg, portfolios_df, history_df, sub_history_df, instruments_df):
     _render_page_title("Intransparency Monitoring Dashboard", show_stats=True)
     st.markdown(
-        '<p style="font-size:14px;color:var(--text-muted);font-weight:500;letter-spacing:0.01em;margin-top:-12px;margin-bottom:18px;">'
+        '<p style="font-size:14px;color:var(--text-muted);font-weight:500;letter-spacing:0.01em;margin-top:2px;margin-bottom:18px;">'
         'Direct Investments, Co-investments and Fund Investments</p>',
         unsafe_allow_html=True,
     )
