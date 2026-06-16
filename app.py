@@ -83,6 +83,50 @@ THEMES = {
         "plotly-line":      "#475569",
         "plotly-legend-bg": "#0B1120",
         "section-band":     "#60A5FA",
+        # ── Pass 29 (Phase A): semantic tokens so every component reads
+        # theme-aware colours instead of hardcoded cream pastels.
+        # Status pills (Recommended Action Plan / In Progress / Completed).
+        "status-rec-fg":      "#FBBF24",
+        "status-rec-bg":      "rgba(251,191,36,0.14)",
+        "status-rec-border":  "rgba(251,191,36,0.40)",
+        "status-prog-fg":     "#60A5FA",
+        "status-prog-bg":     "rgba(96,165,250,0.16)",
+        "status-prog-border": "rgba(96,165,250,0.40)",
+        "status-done-fg":     "#4ADE80",
+        "status-done-bg":     "rgba(74,222,128,0.14)",
+        "status-done-border": "rgba(74,222,128,0.40)",
+        # Soft tier tints (cockpit BREACH/ALERT/OK card backgrounds).
+        # Pass 29.1: softer dark-mode tints — the original deep-red #3D1212
+        # was overpowering when used as a full card background. The new
+        # values keep the tier hue but sit closer to bg-surface (#1E293B)
+        # so the bright tier border carries the BREACH signal.
+        "tint-breach-bg":     "#2A1A1C",
+        "tint-alert-bg":      "#2A2418",
+        "tint-ok-bg":         "#1A2A22",
+        # Gauge bar inside popup card.
+        "gauge-ok-fill":      "#1A3D2B",
+        "gauge-alert-fill":   "#3D2A0A",
+        "gauge-indicator":    "#F8FAFC",
+        "gauge-indicator-halo": "#0B1120",
+        # Plotly tier ramp + marker outlines.
+        "plotly-marker-border": "#0B1120",
+        "tier-red-bright":      "#F87171",
+        "tier-amber-bright":    "#FBBF24",
+        "tier-amber-soft":      "#F59E0B",
+        "tier-green-bright":    "#4ADE80",
+        "plotly-hline":         "#94A3B8",
+        # Strategic Focus chip palette (missing-fields).
+        "chip-violet-bg":     "#A78BFA",
+        "chip-teal-fg":       "#5EEAD4",
+        "chip-teal-bg":       "rgba(94,234,212,0.15)",
+        "chip-teal-border":   "#2DD4BF",
+        # Soft accent tint for callout backgrounds (Top opportunity,
+        # Integration note, primary-button glow).
+        "accent-tint-bg":     "rgba(96,165,250,0.14)",
+        "accent-shadow":      "rgba(96,165,250,0.28)",
+        # Modal backdrop opacity (dialog popup) — heavier in dark mode so
+        # the card visibly floats over the dim dashboard.
+        "modal-backdrop":     "rgba(0,0,0,0.50)",
     },
     "cream": {
         # White/slate palette. Semantic ramp; all pairs verified WCAG AA.
@@ -120,6 +164,46 @@ THEMES = {
         "plotly-line":      "#CBD5E1",
         "plotly-legend-bg": "#FFFFFF",
         "section-band":     "#1D4ED8",
+        # ── Pass 29 (Phase A): semantic tokens — cream palette equivalents.
+        # Status pills (Recommended Action Plan / In Progress / Completed).
+        "status-rec-fg":      "#B45309",
+        "status-rec-bg":      "rgba(180,83,9,0.08)",
+        "status-rec-border":  "rgba(180,83,9,0.30)",
+        "status-prog-fg":     "#0E5A8A",
+        "status-prog-bg":     "rgba(14,90,138,0.10)",
+        "status-prog-border": "rgba(14,90,138,0.30)",
+        "status-done-fg":     "#15803D",
+        "status-done-bg":     "rgba(21,128,61,0.10)",
+        "status-done-border": "rgba(21,128,61,0.30)",
+        # Soft tier tints (cockpit BREACH/ALERT/OK card backgrounds).
+        "tint-breach-bg":     "#FEF2F2",
+        "tint-alert-bg":      "#FFFBEB",
+        "tint-ok-bg":         "#F0FDF4",
+        # Gauge bar inside popup card.
+        "gauge-ok-fill":      "#DCFCE7",
+        "gauge-alert-fill":   "#FEF3C7",
+        "gauge-indicator":    "#0F172A",
+        "gauge-indicator-halo": "#FFFFFF",
+        # Plotly tier ramp + marker outlines.
+        "plotly-marker-border": "#FFFFFF",
+        "tier-red-bright":      "#e74c3c",
+        "tier-amber-bright":    "#e67e22",
+        "tier-amber-soft":      "#f59e0b",
+        "tier-green-bright":    "#27ae60",
+        "plotly-hline":         "#94A3B8",
+        # Strategic Focus chip palette (missing-fields).
+        "chip-violet-bg":     "#7C3AED",
+        "chip-teal-fg":       "#0F766E",
+        "chip-teal-bg":       "rgba(13,148,136,0.10)",
+        "chip-teal-border":   "#0D9488",
+        # Soft accent tint for callout backgrounds.
+        "accent-tint-bg":     "rgba(29,78,216,0.08)",
+        "accent-shadow":      "rgba(29,78,216,0.18)",
+        # Modal backdrop — fully transparent in cream so the dashboard is
+        # plainly visible behind the popup. The dialog card has its own
+        # border + drop shadow (from the stDialog rules) which gives it
+        # enough visual definition without any backdrop dimming.
+        "modal-backdrop":     "transparent",
     },
 }
 
@@ -288,7 +372,7 @@ STRATEGY_FAMILY = {
     "HY Credit":             {"direct": "Credit Single-Asset (public-aligned)",  "fund": "Credit Fund (public-aligned)"},
     "MAARS":                 {"direct": "Macro Fund",                            "fund": "Macro Fund"},
     "EILB":                  {"direct": "Equity Long-Only Fund",                 "fund": "Equity Long-Only Fund"},
-    "Hedge Fund 1":          {"direct": "Hedge Fund",                            "fund": "Hedge Fund"},
+    "MA":          {"direct": "Hedge Fund",                            "fund": "Hedge Fund"},
     "Hedge Fund 2":          {"direct": "Hedge Fund",                            "fund": "Hedge Fund"},
     "RE Bricks and Mortar":  {"direct": "Unlisted RE B&M",                       "fund": "RE B&M Fund"},
     "RE Debt":               {"direct": "Credit Single-Asset (private-aligned)", "fund": "Credit Fund (private-aligned)"},
@@ -435,6 +519,37 @@ def _render_theme_css():
     hover_card = "#EAF2FB" if is_cream else "#293251"
     hover_card_border = t["border-strong"]
     investigate_hover_bg = "#F5C1C1" if is_cream else "#992525"
+    # Pass 29.7: dialog/modal CSS only applies in dark mode. Cream mode used
+    # Streamlit's defaults perfectly before Pass 29.2 (dashboard clearly
+    # visible behind a faint backdrop, clean white card with a subtle border).
+    # Injecting any of our overrides in cream mode caused the grey-curtain
+    # bug the user kept hitting — so we no-op here when is_cream.
+    dialog_css = "" if is_cream else """
+/* === Modal dialog chrome — dark mode only (Pass 29.7) === */
+/* Layers: [data-baseweb="modal"] (wrapper) → [data-baseweb="modal-backdrop"]
+   (dim) → div[role="dialog"] (the card itself). Streamlit's default in dark
+   mode paints the card white, so we flip the card + paint the backdrop dark. */
+[data-baseweb="modal"] { background: transparent !important; }
+[data-baseweb="modal-backdrop"] { background: rgba(0,0,0,0.50) !important; }
+div[role="dialog"], [data-testid="stDialog"] {
+  background-color: var(--bg-surface) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-strong) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 12px 36px rgba(0,0,0,0.45) !important;
+}
+div[role="dialog"] h1, div[role="dialog"] h2, div[role="dialog"] h3,
+[data-testid="stDialog"] h1, [data-testid="stDialog"] h2, [data-testid="stDialog"] h3
+  { color: var(--text-primary) !important; }
+div[role="dialog"] [data-testid="stMarkdownContainer"],
+[data-testid="stDialog"] [data-testid="stMarkdownContainer"]
+  { color: var(--text-primary); }
+div[role="dialog"] [data-testid="baseButton-headerNoPadding"],
+div[role="dialog"] button[kind="headerNoPadding"]
+  { color: var(--text-soft) !important; }
+div[role="dialog"] [data-testid="baseButton-headerNoPadding"]:hover
+  { color: var(--text-primary) !important; }
+"""
     investigate_hover_text = t["color-breach"] if is_cream else "#FFD5D5"
     css = f"""
 <style>
@@ -485,6 +600,7 @@ h3 {{ font-size: 1.25rem !important; font-weight: 700 !important; letter-spacing
 [data-testid=\"stExpander\"] details > summary, [data-testid=\"stExpander\"] [data-testid=\"stExpanderDetails\"], [data-testid=\"stExpander\"] [data-testid=\"stExpanderToggleIcon\"], [data-testid=\"stExpander\"] summary > div {{ background-color: var(--bg-surface) !important; color: var(--text-primary) !important; }}
 [data-testid=\"stExpander\"] details {{ border-radius:6px; }}
 [data-testid=\"stExpander\"] details > summary {{ padding: 8px 12px; }}
+{dialog_css}
 [data-testid=\"stAlert\"]     {{ border-radius:6px !important; }}
 [data-baseweb=\"select\"]     {{ background-color: var(--bg-surface) !important; }}
 [data-testid=\"stSelectbox\"] {{ max-width: 340px; }}
@@ -697,8 +813,11 @@ SUB_STRATEGY_META = {
     ],
     "G03": [
         # HF1 takes MA data: spreadsheet was A+R 100% / Red 25% → buffered to 100% / 30%
-        ("S03a", "Hedge Fund 1",         0.30, 1.00, 1.00),
-        ("S03b", "Hedge Fund 2",         0.28, 1.00, 1.00),     # was 0.23 / 1.00
+        # (A+R buffered to 105% but capped at 100% per user instruction)
+        ("S03a", "MA",                   0.30, 1.00, 1.00),
+        # Pass 29.14: HF2 mapped to SOG. Spreadsheet was Red 60% / A+R 60%
+        # → buffered to Red 65% / A+R 65%.
+        ("S03b", "Hedge Fund 2",         0.65, 0.65, 0.65),
     ],
     "G04": [
         ("S04a", "RE Bricks and Mortar", 0.05, 0.16, 0.16),     # was 0.00 / 0.11
@@ -714,7 +833,9 @@ SUB_STRATEGY_META = {
         ("S06b", "Infrastructure Debt",   0.05, 0.45, 0.45),    # was 0.00 / 0.40
     ],
     "G07": [
-        ("S07a", "Multi Asset1",         0.10, 0.25, 0.30),     # was 0.05 / 0.25
+        # Pass 29.14: Multi Asset1 mapped to Antares. Spreadsheet was
+        # Red 0% / A+R 0% → buffered to Red 5% / A+R 5%.
+        ("S07a", "Multi Asset1",         0.05, 0.05, 0.05),
     ],
 }
 
@@ -731,7 +852,7 @@ TIER_MIX = {
     "HY Credit":                    [0.45, 0.10, 0.45],
     "MAARS":                        [0.88, 0.00, 0.12],
     "EILB":                         [1.00, 0.00, 0.00],
-    "Hedge Fund 1":                 [0.00, 0.55, 0.45],
+    "MA":                 [0.00, 0.55, 0.45],
     "Hedge Fund 2":                 [0.78, 0.13, 0.09],
     "RE Bricks and Mortar":         [0.62, 0.38, 0.00],
     "RE Debt":                      [0.99, 0.01, 0.00],
@@ -773,9 +894,13 @@ STRATEGY_REAL_DATA = {
         "action":   "",
     },
     "MAARS": {
+        # Pass 29.12: status flipped N/A → "In progress" because the sleeve
+        # is actively being wound down ("EFM sleeve to be closed" is the
+        # tracked initiative). Treating it as N/A excluded it from the
+        # Kanban and broke the AI Observations breach math.
         "driver":   "No lookthrough on macro EFMs",
         "chips":    ["UPC", "macro EFMs"],
-        "status":   "N/A",
+        "status":   "In progress",
         "action":   "EFM sleeve to be closed",
     },
     "EILB": {
@@ -784,7 +909,7 @@ STRATEGY_REAL_DATA = {
         "status":   "N/A",
         "action":   "",
     },
-    "Hedge Fund 1": {  # takes MA's row from spreadsheet
+    "MA": {  # Pass 29.9: was "Hedge Fund 1" in earlier dashboard versions
         "driver":   "Missing metrics",
         "chips":    ["metrics"],
         "status":   "In progress",
@@ -858,7 +983,7 @@ EXPOSURE_TARGETS = {
     "HY Credit":              (0.54, 0.54),
     "MAARS":                  (0.11, 0.11),
     "EILB":                   (0.00, 0.00),
-    "Hedge Fund 1":           (1.00, 0.50),
+    "MA":           (1.00, 0.50),
     "Hedge Fund 2":           None,           # no spreadsheet mapping
     "RE Bricks and Mortar":   (0.40, 0.00),
     "RE Debt":                (0.02, 0.00),
@@ -881,7 +1006,7 @@ STRATEGY_MV_WEIGHTS = {
     "HY Credit":             0.0038,
     "MAARS":                 0.0048,
     "EILB":                  0.0932,
-    "Hedge Fund 1":          0.0039,
+    "MA":          0.0039,
     "Hedge Fund 2":          0.0302,
     "RE Bricks and Mortar":  0.1284,
     "RE Debt":               0.0835,
@@ -944,6 +1069,14 @@ def _load_data_from_excel(filepath):
     history_df        = _pd.read_excel(xl, "History")
     sub_history_df    = _pd.read_excel(xl, "Sub_History")
     audit_df          = _pd.read_excel(xl, "Audit")
+
+    # Pass 29.9: backward compat — existing data_template.xlsx files use the
+    # legacy "Hedge Fund 1" sub-strategy name. Normalise to "MA" at load time
+    # so the rest of the codebase (which now keys on "MA") works transparently.
+    _LEGACY_RENAME = {"Hedge Fund 1": "MA"}
+    for _df in (sub_strategies_df, portfolios_df, instruments_df, sub_history_df):
+        if "sub_strategy_name" in _df.columns:
+            _df["sub_strategy_name"] = _df["sub_strategy_name"].replace(_LEGACY_RENAME)
 
     # Reconstruct list columns. Older templates stored them as |-separated
     # strings; newer regens may have written Python list repr strings. Handle both.
@@ -1156,8 +1289,10 @@ def _load_data_from_excel(filepath):
     instruments_df["strategy_total_mv"]  = instruments_df["strategy_id"].map(_strat_totals_map)
     instruments_df["mv_pct_of_strategy"] = instruments_df["mv"] / instruments_df["strategy_total_mv"] * 100
 
-    # Action items — kept synthetic (mock data; doesn’t come from Excel)
-    action_items_df = _build_synthetic_action_items(strategies_df, sub_strategies_df)
+    # Action items — Pass 29.9: same STRATEGY_REAL_DATA-based rebuild that the
+    # synthetic path uses, so the Kanban shows the right "In Progress" cards
+    # regardless of whether the dashboard loaded from Excel or generated fresh.
+    action_items_df = _build_action_items_from_real_data(sub_strategies_df)
 
     return (strategies_df, sub_strategies_df, portfolios_df, instruments_df,
             strat_agg, sub_strat_agg, history_df, sub_history_df, audit_df, action_items_df)
@@ -1191,6 +1326,81 @@ def _build_synthetic_action_items(strategies_df, sub_strategies_df):
                      "last_update":upd,"last_update_note":note})
     _random.setstate(_seed)
     return _pd.DataFrame(rows)
+
+
+def _build_action_items_from_real_data(sub_strategies_df):
+    """Pass 29.9: Kanban action items built from STRATEGY_REAL_DATA. Called
+    by BOTH the synthetic-data path (generate_all_data) and the Excel-loader
+    path (_load_data_from_excel) so the Action Tracker tab shows the right
+    "In Progress" / "Recommended Action Plan" cards regardless of source.
+    Originally lived inline in generate_all_data (Pass 25.7) — extracted
+    here to fix the Excel-loader path which was still using the older
+    template-based _build_synthetic_action_items list."""
+    _now = datetime.now()
+    _action_rows = []
+    _OWNER_BY_GROUP = {
+        "EQ Active":        "Strategy Ops",
+        "Fixed Income":     "Strategy Ops",
+        "Hedge Fund":       "Deal Team & Legal",
+        "Real Estate":      "Deal Team & Legal",
+        "Private Equities": "Deal Team & Legal",
+        "Infrastructure":   "Deal Team & Legal",
+        "Multi-Asset":      "CISD",
+    }
+    # Pass 27.8: 3-column Kanban — Recommended Action Plan / In Progress / Completed.
+    # "No initiative" + "Planned / TBD" both map to "Recommended Action Plan".
+    # "In progress" → "In Progress". "N/A" → excluded from the board.
+    _STATUS_MAP = {
+        "No initiative":  "Recommended Action Plan",
+        "Planned / TBD":  "Recommended Action Plan",
+        "In progress":    "In Progress",
+    }
+    _DAYS_BY_STATUS = {
+        "Recommended Action Plan":  120,
+        "In Progress":              60,
+        "Completed":                -30,
+    }
+    _idx = 1
+    for _, sub in sub_strategies_df.iterrows():
+        sub_name = sub["sub_strategy_name"]
+        real = STRATEGY_REAL_DATA.get(sub_name)
+        if real is None:
+            continue
+        raw_status = real.get("status", "")
+        # Pass 29.10: skip "No initiative" entirely — those strategies don't
+        # have a tracked action yet, so a placeholder card on the Kanban
+        # ("No active initiative yet…") is noise. The "8 need a Recommended
+        # Action Plan" callout on Total Portfolio's A.I. Observations still
+        # surfaces them so they aren't lost. N/A is also skipped (closed
+        # sleeves / no exposure to track). Only Planned/TBD + In progress
+        # produce cards from the spreadsheet.
+        if raw_status in ("", "N/A", "No initiative"):
+            continue
+        new_status   = _STATUS_MAP.get(raw_status, raw_status)
+        driver_text  = real.get("driver", "") or "—"
+        action_text  = real.get("action", "") or ""
+        owner_team   = _OWNER_BY_GROUP.get(sub["strategy_name"], "Strategy Ops")
+        days_offset  = _DAYS_BY_STATUS.get(new_status, 90)
+        if not action_text and raw_status == "Planned / TBD":
+            action_text = "Planned — scope and timing TBD."
+        _action_rows.append({
+            "action_id":         f"A{_idx:03d}",
+            "title":             f"{sub_name} — improve transparency",
+            "strategy_group":    sub["strategy_name"],
+            "strategy_name":     sub_name,
+            "owner_team":        owner_team,
+            "impact_pp":         0.0,
+            "status":            new_status,
+            "linked_reason":     driver_text,
+            "target_date":       (_now + timedelta(days=days_offset)).date(),
+            "last_update":       (_now - timedelta(days=14)).date(),
+            "last_update_note":  action_text,
+        })
+        _idx += 1
+    # Pass 29.10: the 3 sample "Completed" cards were demo-only filler. User
+    # asked to remove them — Completed column will be empty until production
+    # backs the dashboard with Jira/Dataquest history.
+    return pd.DataFrame(_action_rows)
 
 
 def _tier_mix_signature():
@@ -1683,60 +1893,9 @@ def generate_all_data(_tier_mix_sig: str = ""):
     sub_history_df = pd.DataFrame(sub_hist_rows)
 
     # ── action_items_df: rebuilt from STRATEGY_REAL_DATA (Pass 25.7) ──────────
-    # One card per Strategy. Status, driver and plan text come from the
-    # spreadsheet; owner team is mapped from Strategy Group.
-    _now = datetime.now()
-    _action_rows = []
-    _OWNER_BY_GROUP = {
-        "EQ Active":        "Strategy Ops",
-        "Fixed Income":     "Strategy Ops",
-        "Hedge Fund":       "Deal Team & Legal",
-        "Real Estate":      "Deal Team & Legal",
-        "Private Equities": "Deal Team & Legal",
-        "Infrastructure":   "Deal Team & Legal",
-        "Multi-Asset":      "CISD",
-    }
-    _DAYS_BY_STATUS = {
-        "In progress":    60,
-        "Planned / TBD":  120,
-        "No initiative":  180,
-        "N/A":            -1,   # excluded from Kanban
-    }
-    _idx = 1
-    for _, sub in sub_strategies_df.iterrows():
-        sub_name = sub["sub_strategy_name"]
-        real = STRATEGY_REAL_DATA.get(sub_name)
-        if real is None:
-            continue
-        status = real.get("status", "")
-        if status in ("", "N/A"):
-            continue                    # N/A strategies don't appear on the board
-        driver_text  = real.get("driver", "") or "—"
-        action_text  = real.get("action", "") or ""
-        days_offset  = _DAYS_BY_STATUS.get(status, 90)
-        owner_team   = _OWNER_BY_GROUP.get(sub["strategy_name"], "Strategy Ops")
-        if not action_text:
-            # No initiative — surface the gap and the suggested next step
-            if status == "No initiative":
-                action_text = "No active initiative — driver of gap awaiting prioritisation."
-            elif status == "Planned / TBD":
-                action_text = "Planned — scope and timing TBD."
-
-        _action_rows.append({
-            "action_id":         f"A{_idx:03d}",
-            "title":             f"{sub_name} — improve transparency",
-            "strategy_group":    sub["strategy_name"],
-            "strategy_name":     sub_name,
-            "owner_team":        owner_team,
-            "impact_pp":         0.0,
-            "status":            status,
-            "linked_reason":     driver_text,
-            "target_date":       (_now + timedelta(days=days_offset)).date(),
-            "last_update":       (_now - timedelta(days=14)).date(),
-            "last_update_note":  action_text,
-        })
-        _idx += 1
-    action_items_df = pd.DataFrame(_action_rows)
+    # Pass 29.9: extracted into a helper so both the Excel-loader and the
+    # synthetic-data paths produce the same Kanban content.
+    action_items_df = _build_action_items_from_real_data(sub_strategies_df)
 
     # ── transparency_rating: High / Medium / Low per Strategy ─────────────────
     # Based on Green % = 100 - non-transparent %. Stakeholders asked for an
@@ -1968,14 +2127,16 @@ def _cockpit_widget_html(row, expanded=True, show_investigate=True):
 
     # Three-state traffic light: OK (<80%), Alert (>=80%, not breaching), Breach (>100%)
     # Pass 26: subtle background tint so ALERT and BREACH stand out at a glance.
+    # Pass 29: bg_tint reads from theme tokens so the soft tier tints flip
+    # dark in dark mode (cream pastels were illegible on dark page chrome).
     if any_breach:
         pill_text, pill_color, light_color = "BREACH", "var(--breach-text)", "var(--color-breach)"
         border_color, border_width = "var(--color-red-fill)", "2px"
-        bg_tint = "#FEF2F2"      # very light pink — BREACH
+        bg_tint = "var(--tint-breach-bg)"
     elif max_util >= 80:
         pill_text, pill_color, light_color = "ALERT", "var(--alert-text)", "var(--color-alert)"
         border_color, border_width = "var(--alert-border)", "2px"
-        bg_tint = "#FFFBEB"      # very light amber — ALERT
+        bg_tint = "var(--tint-alert-bg)"
     else:
         pill_text, pill_color, light_color = "OK", "var(--ok-text)", "var(--color-ok)"
         border_color, border_width = "var(--color-ok)", "2px"
@@ -2026,8 +2187,14 @@ def _cockpit_widget_html(row, expanded=True, show_investigate=True):
     # affordance — same indicator as the exposure cards above).
     _click_arrow = (' <span style="color:var(--accent);font-size:13px;font-weight:700;vertical-align:middle;">\u2197</span>'
                     if show_investigate else "")
+    # Pass 27.4: header gets a min-height equal to 2 lines of the strategy name
+    # so cards with 2-line titles (EQ Developed Markets, RE Bricks and Mortar, etc.)
+    # don't push the rest of the card down relative to 1-line titles. Everything
+    # below (util rows, chips, status pill, breach footer) now starts at the same
+    # Y position on every card in the grid.
     header = (
-        f'<div style="display:flex;justify-content:space-between;align-items:center;">'
+        f'<div style="display:flex;justify-content:space-between;align-items:center;'
+        f'min-height:42px;">'
         f'<div style="font-size:14.5px;font-weight:600;color:var(--text-primary);line-height:1.3;min-width:0;flex:1 1 auto;">{row["name"]}{_click_arrow}</div>'
         f'<div style="display:flex;align-items:center;gap:5px;flex-shrink:0;margin-left:8px;">'
         f'<div style="width:8px;height:8px;border-radius:50%;background:{light_color};"></div>'
@@ -2041,13 +2208,15 @@ def _cockpit_widget_html(row, expanded=True, show_investigate=True):
     # Status pill below the chip row.
     _chips_list = row.get("driver_chips", []) or []
     _status     = str(row.get("action_status", "") or "").strip()
-    _STATUS_COLORS = {
-        "No initiative":  "#B91C1C",     # red
-        "Planned / TBD":  "#B45309",     # amber-brown
-        "In progress":    "#15803D",     # green
-        "N/A":            "#475569",     # slate
+    # Pass 28.5 / 29: short pill format "Action Plan: <STATE>". Colours now
+    # come from theme tokens so they flip between cream and dark modes.
+    _STATUS_DISPLAY = {
+        "No initiative":  ("Action Plan: TBD",         "var(--status-rec-fg)"),
+        "Planned / TBD":  ("Action Plan: TBD",         "var(--status-rec-fg)"),
+        "In progress":    ("Action Plan: In Progress", "var(--status-prog-fg)"),
+        "Completed":      ("Action Plan: Completed",   "var(--status-done-fg)"),
     }
-    _status_color = _STATUS_COLORS.get(_status, "#475569")
+    _disp_status, _status_color = _STATUS_DISPLAY.get(_status, ("", "var(--text-muted)"))
 
     if isinstance(_chips_list, list) and len(_chips_list) > 0:
         _chips_html = "".join(
@@ -2060,11 +2229,11 @@ def _cockpit_widget_html(row, expanded=True, show_investigate=True):
         _chips_html = ('<span style="font-size:11.5px;color:var(--text-subtle);font-style:italic;">'
                        'No driver recorded.</span>')
 
-    if _status:
+    if _disp_status:
         _status_pill = (
             f'<div style="margin-top:4px;font-size:10.5px;letter-spacing:0.04em;'
             f'text-transform:uppercase;font-weight:700;color:{_status_color};">'
-            f'\u2022 {_status}</div>'
+            f'\u2022 {_disp_status}</div>'
         )
     else:
         _status_pill = ""
@@ -2123,15 +2292,15 @@ def _cockpit_widget_html(row, expanded=True, show_investigate=True):
             focus_tier = _bp[0][0] if _bp else "Amber"
         else:
             focus_tier = "Amber"
-        # Pass BOTH the parent Strategy Group (name=) AND the specific sub-strategy
-        # (sdscope=) so the SD page lands with the correct Strategy already filtered
-        # in the Scope dropdown, not just the parent group.
+        # Pass 27: card click sets ?preview=<sub_name>. The Total Portfolio page
+        # picks that up and opens an st.dialog with the enlarged preview card.
+        # From inside the dialog, an "Open full Strategy Detail" button drills
+        # through to the Strategy Detail page (keeping the previous flow alive).
         sub_name = str(row.get("sub_strategy_name") or row.get("name") or "")
-        href = (f"?goto=strategy&name={quote(target_group)}&sdfocus={focus_tier}"
-                f"&sdstrat={quote(target_group)}&sdscope={quote(sub_name)}{_theme_qs()}")
+        href = f"?preview={quote(sub_name)}{_theme_qs()}"
         return (
             f'<a class="cockpit-link" href="{href}" target="_self" '
-            f'aria-label="Open {row["name"]} in Strategy Detail" '
+            f'aria-label="Preview {row["name"]}" '
             f'style="{container_style}">'
             f'{inner}'
             f'</a>'
@@ -2383,9 +2552,9 @@ def _ai_observations_html(strat_agg, sub_strat_agg, portfolios_df, history_df, s
                         f' month-over-month (<span class="kpi-number">{cur:.1f}%</span> vs '
                         f'<span class="kpi-number">{prev:.1f}%</span> last month).')
             always_sections.append(
-                f'<div style="margin-bottom:6px;">'
+                f'<div style="margin-bottom:4px;">'
                 f'<div class="metric-label" style="margin-bottom:2px;">Portfolio overview</div>'
-                f'<div style="font-size:14px;color:var(--text-soft);line-height:1.6;">'
+                f'<div style="font-size:14px;color:var(--text-soft);line-height:1.5;">'
                 f'{lead}'
                 f'</div></div>'
             )
@@ -2408,7 +2577,7 @@ def _ai_observations_html(strat_agg, sub_strat_agg, portfolios_df, history_df, s
                 more_sections.append(
                     f'<div style="margin-bottom:6px;">'
                     f'<div class="metric-label" style="margin-bottom:2px;color:var(--breach-text);">Watch list</div>'
-                    f'<div style="font-size:14px;color:var(--text-soft);line-height:1.6;">'
+                    f'<div style="font-size:14px;color:var(--text-soft);line-height:1.5;">'
                     f'Transparency deteriorated most in {", ".join(dpart)}.'
                     f'</div></div>'
                 )
@@ -2429,7 +2598,7 @@ def _ai_observations_html(strat_agg, sub_strat_agg, portfolios_df, history_df, s
                 always_sections.append(
                     f'<div style="margin-bottom:6px;">'
                     f'<div class="metric-label" style="margin-bottom:2px;color:var(--breach-text);">Top contributors</div>'
-                    f'<div style="font-size:14px;color:var(--text-soft);line-height:1.6;">'
+                    f'<div style="font-size:14px;color:var(--text-soft);line-height:1.5;">'
                     f'The biggest drivers of current Amber + Red exposure are '
                     f'{", ".join(_bits)}.'
                     f'</div></div>'
@@ -2442,37 +2611,52 @@ def _ai_observations_html(strat_agg, sub_strat_agg, portfolios_df, history_df, s
     breaching = sub_strat_agg[sub_strat_agg["any_breach"]]
     if len(breaching) > 0:
         n_total = len(breaching)
-        no_init = breaching[breaching["action_status"] == "No initiative"]
-        in_prog = breaching[breaching["action_status"] == "In progress"]
-        planned = breaching[breaching["action_status"] == "Planned / TBD"]
+        in_prog  = breaching[breaching["action_status"] == "In progress"]
+        # Pass 28.4: "No initiative" + "Planned / TBD" both fold into the
+        # Kanban "Recommended Action Plan" bucket — collapse them in the
+        # narrative too so the count reconciles with the Action Tracker tab.
+        rec_plan = breaching[breaching["action_status"].isin(
+            ["No initiative", "Planned / TBD"]
+        )]
+        # Pass 29.11: account for the third bucket — breaching strategies whose
+        # action status is "N/A" (closed sleeve, no remediation needed). Without
+        # this the narrative read "11 in breach. 3 In Progress. 7 need a plan"
+        # which didn't add up (3+7=10, not 11).
+        na_status = breaching[~breaching["action_status"].isin(
+            ["In progress", "No initiative", "Planned / TBD"]
+        )]
 
+        # In Progress first (positive signal), Recommended Action Plan last.
         body_b = (
             f'<b>{n_total}</b> {"strategy" if n_total==1 else "strategies"} in breach.'
         )
-        if len(no_init) > 0:
-            body_b += (
-                f' <b style="color:var(--breach-text);">{len(no_init)}</b> with '
-                f'<b>no current initiative</b>: '
-                + ", ".join(f'<b>{n}</b>' for n in no_init["sub_strategy_name"].tolist())
-                + '.'
-            )
         if len(in_prog) > 0:
             ip_names = ", ".join(f'<b>{n}</b>' for n in in_prog["sub_strategy_name"].tolist())
             body_b += (
-                f' <b style="color:var(--color-ok);">{len(in_prog)}</b> with an '
-                f'<b>active initiative</b>: {ip_names}.'
+                f' <b style="color:var(--status-prog-fg);">{len(in_prog)}</b> '
+                f'{"strategy" if len(in_prog)==1 else "strategies"} '
+                f'<b>In Progress</b>: {ip_names}.'
             )
-        if len(planned) > 0:
-            pl_names = ", ".join(f'<b>{n}</b>' for n in planned["sub_strategy_name"].tolist())
+        if len(rec_plan) > 0:
             body_b += (
-                f' <b style="color:var(--color-alert);">{len(planned)}</b> '
-                f'<b>planned / TBD</b>: {pl_names}.'
+                f' <b style="color:var(--status-rec-fg);">{len(rec_plan)}</b> '
+                f'{"needs" if len(rec_plan)==1 else "need"} a '
+                f'<b>Recommended Action Plan</b>.'
+            )
+        if len(na_status) > 0:
+            na_names = ", ".join(f'<b>{n}</b>' for n in na_status["sub_strategy_name"].tolist())
+            body_b += (
+                f' <span style="color:var(--text-muted);"><b>{len(na_status)}</b> '
+                f'marked <b>N/A</b> ({na_names} — closed sleeve / no remediation needed).</span>'
             )
 
-        more_sections.append(
-            f'<div style="margin-bottom:6px;">'
+        # Pass 27.5: Active breaches is the most actionable summary — keep it
+        # always-visible. Watch list + Biggest leverage opportunity remain
+        # behind the chevron.
+        always_sections.append(
+            f'<div style="margin-bottom:4px;">'
             f'<div class="metric-label" style="margin-bottom:2px;color:var(--breach-text);">Active breaches</div>'
-            f'<div style="font-size:14px;color:var(--text-soft);line-height:1.6;">{body_b}</div></div>'
+            f'<div style="font-size:14px;color:var(--text-soft);line-height:1.5;">{body_b}</div></div>'
         )
 
     # ── Biggest leverage opportunity (collapsed) ─────────────────────────────
@@ -2491,7 +2675,7 @@ def _ai_observations_html(strat_agg, sub_strat_agg, portfolios_df, history_df, s
             more_sections.append(
                 f'<div style="margin-bottom:0;">'
                 f'<div class="metric-label" style="margin-bottom:2px;color:var(--accent);">Biggest leverage opportunity</div>'
-                f'<div style="font-size:14px;color:var(--text-soft);line-height:1.6;">'
+                f'<div style="font-size:14px;color:var(--text-soft);line-height:1.5;">'
                 f'<b>{top_field}</b> \u2014 missing on <span class="kpi-number">{top_n}</span> instruments. '
                 f'Resolving it could reduce Amber + Red exposure by up to '
                 f'<b style="color:var(--accent);"><span class="kpi-number">{_impact_pct:.2f}%</span></b>.'
@@ -2521,12 +2705,15 @@ def _ai_observations_html(strat_agg, sub_strat_agg, portfolios_df, history_df, s
             )
 
     return (
+        # Pass 29.13: tightened panel padding-top (14→10) and header bottom
+        # gap (8→6) to bring the AI panel height down by ~6px so it aligns
+        # with the stacked exposure cards on the left.
         f'<div style="background:var(--bg-surface);'
         f'border:1px solid var(--border-default);border-left:4px solid var(--accent);'
-        f'border-radius:8px;padding:14px 20px;margin-bottom:24px;'
+        f'border-radius:8px;padding:10px 20px 4px 20px;margin-bottom:24px;'
         f'display:flex;flex-direction:column;min-height:215px;height:100%;'
         f'box-sizing:border-box;">'
-        f'<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">'
+        f'<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">'
         f'<div style="font-size:11px;font-weight:800;color:var(--accent);letter-spacing:0.14em;text-transform:uppercase;">A.I. Observations</div>'
         f'<div style="background:var(--accent);color:#FFFFFF;font-size:9px;font-weight:700;padding:2px 7px;border-radius:8px;letter-spacing:0.06em;">AUTO</div>'
         f'<div style="flex:1;height:1px;background:var(--border-default);"></div>'
@@ -2541,7 +2728,245 @@ def _ai_observations_html(strat_agg, sub_strat_agg, portfolios_df, history_df, s
     )
 
 
+
+def _gauge_bar_html(label: str, current_pct: float) -> str:
+    """Pass 27.1: gauge bar capped at 100% — bar shows OK (0-80%) + ALERT
+    (80-100%) zones only. If util > 100% the indicator pins to the right edge;
+    the number above the bar still shows the actual util (e.g. 106%). Status
+    word in {OK / Alert / Breach}."""
+    pos_pct = max(0.0, min(current_pct, 100.0))
+    # Pass 29: status text + bar zones + indicator all read from theme tokens.
+    if current_pct > 100:
+        status, color = "Breach", "var(--breach-text)"
+    elif current_pct >= 80:
+        status, color = "Alert",  "var(--alert-text)"
+    else:
+        status, color = "OK",     "var(--ok-text)"
+    # Zones on the 0-100 bar:
+    #   OK     0 -> 80%   (var(--gauge-ok-fill))
+    #   ALERT  80 -> 100% (var(--gauge-alert-fill))
+    bar_bg = (
+        "linear-gradient(to right, "
+        "var(--gauge-ok-fill) 0%, var(--gauge-ok-fill) 80%, "
+        "var(--gauge-alert-fill) 80%, var(--gauge-alert-fill) 100%)"
+    )
+    return (
+        f'<div style="margin-bottom:14px;">'
+        f'<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">'
+        f'<div>'
+        f'<span style="font-size:14px;font-weight:800;color:var(--text-primary);">{label}</span>'
+        f'<span style="font-size:13px;font-weight:700;color:{color};margin-left:8px;">{status}</span>'
+        f'</div>'
+        f'<div style="font-size:18px;font-weight:800;color:{color};font-variant-numeric:tabular-nums;">{current_pct:.0f}%</div>'
+        f'</div>'
+        f'<div style="position:relative;height:18px;border-radius:4px;background:{bar_bg};border:1px solid var(--border-default);">'
+        f'<div style="position:absolute;top:-2px;bottom:-2px;left:80%;width:0;border-left:1px dashed var(--text-subtle);"></div>'
+        f'<div style="position:absolute;top:-5px;bottom:-5px;left:{pos_pct}%;width:4px;background:var(--gauge-indicator);border-radius:2px;transform:translateX(-50%);box-shadow:0 0 0 1px var(--gauge-indicator-halo);"></div>'
+        f'</div>'
+        f'<div style="position:relative;height:14px;font-size:10px;color:var(--text-subtle);margin-top:4px;letter-spacing:0.04em;text-transform:uppercase;font-weight:600;">'
+        f'<span style="position:absolute;left:0;">0%</span>'
+        f'<span style="position:absolute;left:80%;transform:translateX(-50%);">80%</span>'
+        f'<span style="position:absolute;right:0;">100%</span>'
+        f'</div>'
+        f'</div>'
+    )
+
+def _render_preview_dialog(row, sub_history_df):
+    """Pass 27: enlarged-card preview opened from a cockpit click. Built with
+    @st.dialog so it appears as a real modal with the X close handled by
+    Streamlit. The 'Open full Strategy Detail' button drills through to the
+    Strategy Detail page using the same query-param flow that the cards used
+    to do directly."""
+    sub_name = str(row.get("sub_strategy_name") or row.get("name") or "")
+    @st.dialog(f"📋  {sub_name}")
+    def _dialog():
+        # ── Status pill in the header area ──────────────────────────────
+        red_u = float(row.get("red_utilisation", 0)) * 100
+        cum_u = float(row.get("cum_utilisation", 0)) * 100
+        any_breach = bool(row.get("any_breach"))
+        # Pass 29: state pill bg reads from theme tokens.
+        if any_breach:
+            state_label, state_bg, state_fg = "BREACH", "var(--tint-breach-bg)", "var(--breach-text)"
+        elif max(red_u, cum_u) >= 80:
+            state_label, state_bg, state_fg = "ALERT", "var(--tint-alert-bg)", "var(--alert-text)"
+        else:
+            state_label, state_bg, state_fg = "OK", "var(--tint-ok-bg)", "var(--ok-text)"
+        sgroup = str(row.get("strategy_name", ""))
+        st.markdown(
+            f'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">'
+            f'<div style="font-size:13px;color:var(--text-soft);">Strategy Group: <b>{sgroup}</b></div>'
+            f'<div style="background:{state_bg};color:{state_fg};border:1px solid {state_fg};'
+            f'padding:4px 14px;border-radius:14px;font-size:12px;font-weight:800;'
+            f'letter-spacing:0.06em;">{state_label}</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+        # ── Two Risk Posture gauges ────────────────────────────────────
+        st.markdown(_gauge_bar_html("Red Utilisation %",        red_u), unsafe_allow_html=True)
+        st.markdown(_gauge_bar_html("Amber + Red Utilisation %", cum_u), unsafe_allow_html=True)
+
+        # ── Driver of gap ──────────────────────────────────────────────
+        driver_text = str(row.get("breach_driver", "") or "").strip()
+        chips_list  = row.get("driver_chips", []) or []
+        if driver_text or chips_list:
+            chips_html = "".join(
+                f'<span style="display:inline-block;border:1px solid {_tag_color(c)};color:{_tag_color(c)};'
+                f'background:transparent;padding:3px 10px;border-radius:10px;font-size:12px;'
+                f'font-weight:600;margin:0 6px 6px 0;white-space:nowrap;">{c}</span>'
+                for c in chips_list[:4]
+            )
+            st.markdown(
+                f'<div style="margin-top:10px;padding:10px 14px;background:var(--bg-track);border-radius:6px;">'
+                f'<div style="font-size:11px;font-weight:800;color:var(--text-muted);'
+                f'text-transform:uppercase;letter-spacing:0.10em;margin-bottom:4px;">Driver of gap</div>'
+                f'<div style="font-size:14px;color:var(--text-soft);margin-bottom:8px;">{driver_text or "—"}</div>'
+                f'<div>{chips_html}</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
+        # ── Action status + plan text ─────────────────────────────────
+        # Pass 28.5 / 29: short pill format "Action Plan: <STATE>" with
+        # theme-aware colours.
+        status = str(row.get("action_status", "") or "")
+        plan   = str(row.get("action_plan_text", "") or "")
+        _STATUS_DISPLAY = {
+            "No initiative":  ("Action Plan: TBD",         "var(--status-rec-fg)"),
+            "Planned / TBD":  ("Action Plan: TBD",         "var(--status-rec-fg)"),
+            "In progress":    ("Action Plan: In Progress", "var(--status-prog-fg)"),
+            "Completed":      ("Action Plan: Completed",   "var(--status-done-fg)"),
+        }
+        disp_status, st_color = _STATUS_DISPLAY.get(status, ("—", "var(--text-muted)"))
+        st.markdown(
+            f'<div style="margin-top:10px;padding:10px 14px;background:var(--bg-track);border-radius:6px;">'
+            f'<div style="font-size:11px;font-weight:800;color:var(--text-muted);'
+            f'text-transform:uppercase;letter-spacing:0.10em;margin-bottom:4px;">Action status</div>'
+            f'<div style="font-size:13px;font-weight:800;color:{st_color};text-transform:uppercase;'
+            f'letter-spacing:0.06em;margin-bottom:6px;">• {disp_status}</div>'
+            f'<div style="font-size:14px;color:var(--text-soft);line-height:1.55;">{plan or "—"}</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+        # ── 12-month utilisation sparkline ────────────────────────────
+        try:
+            sid = row.get("sub_strategy_id")
+            if sid and sub_history_df is not None and len(sub_history_df):
+                hist = sub_history_df[sub_history_df["sub_strategy_id"] == sid].copy()
+                if len(hist):
+                    hist = hist.sort_values("date").tail(12).copy()
+                    thr_r = float(row.get("threshold_red", 0))
+                    thr_c = float(row.get("threshold_cum", 0))
+                    # Pass 27.1: red_pct / amber_pct in sub_history_df are FRACTIONS
+                    # (0-1). Divide by threshold (also fraction) and multiply by 100
+                    # to get utilisation %. The previous /100 zeroed out the series.
+                    hist["red_util"] = (hist["red_pct"]              / thr_r * 100) if thr_r > 0 else 0
+                    hist["cum_util"] = ((hist["red_pct"] + hist["amber_pct"]) / thr_c * 100) if thr_c > 0 else 0
+                    fig = go.Figure()
+                    fig.add_trace(go.Scatter(x=hist["date"], y=hist["red_util"],
+                                              name="Red util %", mode="lines+markers",
+                                              line=dict(color=_theme()["tier-red-bright"], width=2.5),
+                                              marker=dict(size=6, color=_theme()["tier-red-bright"]),
+                                              hovertemplate="<b>%{x|%b %Y}</b><br>Red util: %{y:.1f}%<extra></extra>"))
+                    fig.add_trace(go.Scatter(x=hist["date"], y=hist["cum_util"],
+                                              name="Amber + Red util %", mode="lines+markers",
+                                              line=dict(color=_theme()["tier-amber-bright"], width=2.5),
+                                              marker=dict(size=6, color=_theme()["tier-amber-bright"]),
+                                              hovertemplate="<b>%{x|%b %Y}</b><br>Amber + Red util: %{y:.1f}%<extra></extra>"))
+                    fig.add_hline(y=100, line_dash="dash", line_color=_theme()["plotly-hline"], line_width=1)
+                    fig.update_layout(**DARK_LAYOUT, height=215, margin=dict(l=0,r=0,t=28,b=2),
+                                       showlegend=True, legend=dict(orientation="h", yanchor="bottom", y=1.02, **DARK_LEGEND),
+                                       xaxis_title="", yaxis_title="")
+                    fig.update_yaxes(tickformat=".0f", ticksuffix="%")
+                    st.markdown(
+                        f'<div style="margin-top:8px;margin-bottom:4px;font-size:11px;font-weight:800;color:var(--text-muted);'
+                        f'text-transform:uppercase;letter-spacing:0.10em;">12-month utilisation trend</div>',
+                        unsafe_allow_html=True,
+                    )
+                    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+        except Exception:
+            pass  # sparkline is a nice-to-have; never let it block the dialog
+
+        # ── Breach count footer ────────────────────────────────────────
+        n_br = int(row.get("breaches_last_12mo", 0))
+        st.markdown(
+            f'<div style="margin-top:-24px;padding-top:6px;border-top:1px dashed var(--border-default);'
+            f'font-size:13px;color:var(--text-muted);">'
+            f'No. of breaches past 1 year: <b style="color:var(--text-primary);">{n_br}</b>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+        # ── Drill-through button ──────────────────────────────────────
+        st.markdown('<div style="height:10px;"></div>', unsafe_allow_html=True)
+        # Pass 27.1: thicker accent-coloured border so the drill-through CTA
+        # stands out as the primary action in the dialog.
+        st.markdown("""
+        <style>
+        /* Strip the gap below the plotly chart inside this dialog */
+        div[data-testid="stDialog"] div[data-testid="stPlotlyChart"] {
+          margin-bottom: -20px !important;
+          margin-left:   -8px  !important;
+          margin-right:  -8px  !important;
+        }
+        div[data-testid="stDialog"] div[data-testid="element-container"]:has(> div[data-testid="stPlotlyChart"]) {
+          margin-bottom: 0 !important;
+          padding-left:  0 !important;
+          padding-right: 0 !important;
+        }
+        /* Modal body padding adjustment — let the chart go edge-to-edge */
+        div[data-testid="stDialog"] .stPlotlyChart > div {
+          padding-left:  0 !important;
+          padding-right: 0 !important;
+        }
+        div[data-testid="stDialog"] button[kind="primary"] {
+          border: 2.5px solid var(--accent) !important;
+          font-weight: 700 !important;
+          letter-spacing: 0.04em !important;
+          box-shadow: 0 2px 4px var(--accent-shadow) !important;
+        }
+        div[data-testid="stDialog"] button[kind="primary"]:hover {
+          border-color: var(--accent) !important;
+          filter: brightness(1.05);
+          box-shadow: 0 4px 10px var(--accent-shadow) !important;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+        if st.button("Open full Strategy Detail \u2197", key=f"preview_drill_{sub_name}",
+                      use_container_width=True, type="primary"):
+            st.session_state.pop("preview_strategy",      None)
+            st.session_state.pop("preview_just_clicked",  None)
+            st.query_params["goto"]    = "strategy"
+            st.query_params["name"]    = sgroup
+            st.query_params["sdstrat"] = sgroup
+            st.query_params["sdscope"] = sub_name
+            st.query_params["sdfocus"] = "Amber"
+            st.rerun()
+    _dialog()
+
+
 def page_portfolio_overview(strat_agg, sub_strat_agg, portfolios_df, history_df, sub_history_df, instruments_df):
+    # Pass 27: handle ?preview=<sub_name> URL param — sets session-state then
+    # clears the URL so refresh doesn't re-trigger the dialog. The "just_clicked"
+    # guard ensures the dialog is only opened ONCE per click (st.dialog's X close
+    # doesn't trigger a rerun, so without a guard the dialog would re-open on the
+    # next interaction).
+    _preview_param = st.query_params.get("preview")
+    if _preview_param:
+        st.session_state["preview_strategy"]      = _preview_param
+        st.session_state["preview_just_clicked"]  = True
+        try:
+            del st.query_params["preview"]
+        except Exception:
+            pass
+    if st.session_state.get("preview_just_clicked"):
+        st.session_state["preview_just_clicked"] = False
+        _pname = st.session_state.get("preview_strategy")
+        if _pname:
+            _row = sub_strat_agg[sub_strat_agg["sub_strategy_name"] == _pname]
+            if len(_row):
+                _render_preview_dialog(_row.iloc[0], sub_history_df)
+
     _render_page_title("Intransparency Monitoring Dashboard", show_stats=True)
     st.markdown(
         '<p style="font-size:14px;color:var(--text-muted);font-weight:500;letter-spacing:0.01em;margin-top:2px;margin-bottom:18px;">'
@@ -2663,9 +3088,34 @@ def page_portfolio_overview(strat_agg, sub_strat_agg, portfolios_df, history_df,
     ]
     exp_q = "1" if st.session_state["widgets_expanded"] else "0"
 
-    _expo_col, _ai_col = st.columns([1, 1], gap="small")
+    # Pass 27.6: further shrink exposure column → 0.65 / 1.35 so AI panel
+    # has comfortable text width for the 3 always-visible commentaries.
+    # Pass 27.7: stretch both columns so their bottoms align. We tag the inner
+    # exposure stack with a unique class and use CSS to force its column +
+    # ancestor wrappers to flex-grow to full height, then make each card flex:1
+    # so the stack fills the available height proportionally.
+    st.markdown("""
+    <style>
+    .expo-stack { flex: 1 1 auto; }
+    .expo-stack .exposure-card { flex: 1 1 0; }
+    /* Force the column wrapping .expo-stack and its ancestors to stretch */
+    div[data-testid="stVerticalBlock"]:has(.expo-stack) {
+      height: 100%;
+      display: flex !important;
+      flex-direction: column !important;
+    }
+    div[data-testid="stHorizontalBlock"]:has(.expo-stack) > div {
+      display: flex !important;
+      flex-direction: column !important;
+    }
+    div[data-testid="stHorizontalBlock"]:has(.expo-stack) > div > div[data-testid="stVerticalBlock"] {
+      flex: 1 1 auto !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    _expo_col, _ai_col = st.columns([0.65, 1.35], gap="small", vertical_alignment="top")
     with _expo_col:
-        stacked_html = '<div style="display:flex;flex-direction:column;gap:12px;">'
+        stacked_html = '<div class="expo-stack" style="display:flex;flex-direction:column;gap:12px;height:100%;margin-bottom:24px;">'
         for (lbl, util, val, thr, color, breach, tier_key) in card_specs:
             stacked_html += _total_exposure_card_html(
                 lbl, util, val, thr, color, breach,
@@ -2682,17 +3132,9 @@ def page_portfolio_overview(strat_agg, sub_strat_agg, portfolios_df, history_df,
 
     st.markdown('<div style="height:14px;"></div>', unsafe_allow_html=True)
     st.markdown(_section_band("Active Strategies – Intransparency Limits Utilisation", "Each Strategy\'s utilisation against its own limits."), unsafe_allow_html=True)
-    st.markdown(
-        f'<p style="font-size:13.5px;color:{breach_color};margin:-6px 0 12px;">{breach_part}</p>',
-        unsafe_allow_html=True,
-    )
-
-    # ── Section B: Strategy status panel (cockpit grid) ──────────────────────
-    # Widgets remain whole-clickable LINKS (Pass 4 design). The Expand/Collapse
-    # all button toggles whether the BODY of each widget shows — useful when
-    # scanning 16+ widgets to find the breaches.
-    # Pass 26.1: revert the Expand/Collapse-all button to the default look but
-    # bump the border thickness so it stands out more.
+    # Pass 27.9: breach summary text and Expand-all button live on the SAME row
+    # so the button aligns vertically with the "11 of 16 strategies..." sentence.
+    # Pass 26.1: bump button border thickness so it stands out more.
     st.markdown("""
     <style>
     div[data-testid="stHorizontalBlock"] div.st-key-toggle_widgets button {
@@ -2703,8 +3145,16 @@ def page_portfolio_overview(strat_agg, sub_strat_agg, portfolios_df, history_df,
     }
     </style>
     """, unsafe_allow_html=True)
-    _, btn_col = st.columns([8, 1.1])
-    with btn_col:
+    try:
+        _txt_col, _btn_col = st.columns([8, 1.1], vertical_alignment="center")
+    except TypeError:
+        _txt_col, _btn_col = st.columns([8, 1.1])
+    with _txt_col:
+        st.markdown(
+            f'<p style="font-size:13.5px;color:{breach_color};margin:0;">{breach_part}</p>',
+            unsafe_allow_html=True,
+        )
+    with _btn_col:
         btn_label = "Collapse all" if st.session_state["widgets_expanded"] else "Expand all"
         if st.button(btn_label, key="toggle_widgets", use_container_width=True):
             st.session_state["widgets_expanded"] = not st.session_state["widgets_expanded"]
@@ -2725,7 +3175,7 @@ def page_portfolio_overview(strat_agg, sub_strat_agg, portfolios_df, history_df,
         n = len(children)
         head = (
             '<div style="display:flex;align-items:center;gap:10px;margin:16px 0 8px;">'
-            '<div style="font-size:13px;color:var(--text-soft);font-weight:600;letter-spacing:0.06em;text-transform:uppercase;">'
+            '<div style="font-size:20px;color:var(--text-soft);font-weight:600;letter-spacing:0.06em;text-transform:uppercase;">'
             + title +
             '</div>'
             '<div style="flex:1;height:1px;background:' + accent + ';opacity:0.25;"></div>'
@@ -2773,7 +3223,13 @@ def page_portfolio_overview(strat_agg, sub_strat_agg, portfolios_df, history_df,
     # Trend follows the same tier the exposure cards set (focus_tier), so a card
     # click focuses the Trend just like the Breakdown. Amber / no-click = full chart.
     trend_tier   = st.session_state.get("focus_tier", "Amber")
-    trend_expand = st.session_state.pop("trend_expand", False)
+    # Pass 29.8: promote one-shot navigation flag to a sticky open state so
+    # internal widget toggles (View, Cut by) don't collapse the expander on
+    # rerun. Without this, the first toggle re-evaluates expanded=False and
+    # snaps the panel closed.
+    if st.session_state.pop("trend_expand", False):
+        st.session_state["_tp_trend_open"] = True
+    trend_expand = st.session_state.get("_tp_trend_open", False)
     with st.expander("📈 Total Portfolio Trend", expanded=trend_expand):
         # Pass 16: view toggle — Intransparency (existing) vs Utilisation (new)
         view_mode = st.radio(
@@ -2803,19 +3259,19 @@ def page_portfolio_overview(strat_agg, sub_strat_agg, portfolios_df, history_df,
             fig_trend = go.Figure()
             fig_trend.add_trace(go.Bar(
                 x=hagg_stack["date"], y=hagg_stack["amber_pct"],
-                name="Amber", marker_color="#e67e22", visible=amber_vis,
+                name="Amber", marker_color=_theme()["tier-amber-bright"], visible=amber_vis,
                 hovertemplate="<b>%{x|%b %Y}</b><br>Amber: %{y:.1f}%<extra></extra>",
             ))
             fig_trend.add_trace(go.Bar(
                 x=hagg_stack["date"], y=hagg_stack["red_pct"],
-                name="Red", marker_color="#e74c3c", visible=red_vis,
+                name="Red", marker_color=_theme()["tier-red-bright"], visible=red_vis,
                 hovertemplate="<b>%{x|%b %Y}</b><br>Red: %{y:.1f}%<extra></extra>",
             ))
             fig_trend.add_trace(go.Scatter(
                 x=hagg["date"], y=hagg["non_transparent_pct"],
                 mode="lines+markers", name="Total intransparency", visible=total_vis,
-                line=dict(color="#c0392b", width=2.5),
-                marker=dict(size=8, color="#c0392b", line=dict(color="#0e1117", width=1.5)),
+                line=dict(color=_theme()["tier-red-bright"], width=2.5),
+                marker=dict(size=8, color=_theme()["tier-red-bright"], line=dict(color=_theme()["plotly-marker-border"], width=1.5)),
                 hovertemplate="<b>%{x|%b %Y}</b><br>Total: %{y:.1f}%<extra></extra>",
             ))
             fig_trend.update_layout(
@@ -2863,18 +3319,18 @@ def page_portfolio_overview(strat_agg, sub_strat_agg, portfolios_df, history_df,
             fig_trend.add_trace(go.Scatter(
                 x=hagg_util["date"], y=hagg_util["red_util"],
                 mode="lines+markers", name="Red util %", visible=red_vis_u,
-                line=dict(color="#e74c3c", width=2.5),
-                marker=dict(size=8, color="#e74c3c", line=dict(color="#0e1117", width=1.5)),
+                line=dict(color=_theme()["tier-red-bright"], width=2.5),
+                marker=dict(size=8, color=_theme()["tier-red-bright"], line=dict(color=_theme()["plotly-marker-border"], width=1.5)),
                 hovertemplate="<b>%{x|%b %Y}</b><br>Red util: %{y:.1f}%<extra></extra>",
             ))
             fig_trend.add_trace(go.Scatter(
                 x=hagg_util["date"], y=hagg_util["cum_util"],
                 mode="lines+markers", name="Amber + Red util %", visible=cum_vis_u,
-                line=dict(color="#e67e22", width=2.5),
-                marker=dict(size=8, color="#e67e22", line=dict(color="#0e1117", width=1.5)),
+                line=dict(color=_theme()["tier-amber-bright"], width=2.5),
+                marker=dict(size=8, color=_theme()["tier-amber-bright"], line=dict(color=_theme()["plotly-marker-border"], width=1.5)),
                 hovertemplate="<b>%{x|%b %Y}</b><br>Amber + Red util: %{y:.1f}%<extra></extra>",
             ))
-            fig_trend.add_hline(y=100, line_dash="dash", line_color="#94A3B8",
+            fig_trend.add_hline(y=100, line_dash="dash", line_color=_theme()["plotly-hline"],
                                 annotation_text="Limit (100%)",
                                 annotation_position="bottom right",
                                 annotation_font_size=11)
@@ -2887,7 +3343,10 @@ def page_portfolio_overview(strat_agg, sub_strat_agg, portfolios_df, history_df,
             st.plotly_chart(fig_trend, use_container_width=True)
 
     # ── Section D: Breakdown panel (drill-through from Top cards) ────────────
-    expand_breakdown = st.session_state.pop("breakdown_expand", False)
+    # Pass 29.8: sticky promotion — see Trend section above for the same fix.
+    if st.session_state.pop("breakdown_expand", False):
+        st.session_state["_tp_breakdown_open"] = True
+    expand_breakdown = st.session_state.get("_tp_breakdown_open", False)
     focus_default    = st.session_state.get("focus_tier", "Red")
 
     with st.expander("📊 Total Portfolio Exposure breakdown", expanded=expand_breakdown):
@@ -2992,14 +3451,31 @@ def page_portfolio_overview(strat_agg, sub_strat_agg, portfolios_df, history_df,
                 f'<th style="padding:10px 12px;text-align:left;border-radius:0 6px 0 0;">Issue tags</th>'
                 '</tr></thead><tbody>'
             )
-            # Pass 26.2: build issue-tag chips lookup so we can render the
-            # spreadsheet drivers inline. Only meaningful when cut by Strategy;
-            # other cuts (Investment Type, asset_type) get a blank cell.
+            # Pass 26.2 / 28.2: render the spreadsheet drivers as inline chips.
+            # When Cut by = Strategy, the chips come straight from
+            # STRATEGY_REAL_DATA[strategy]. For other cuts (Investment Type,
+            # Asset type), we aggregate chips across every sub-strategy that
+            # contributes Amber/Red MV to this row's bucket, ranked by how many
+            # of those strategies the chip appears in (most common first).
             def _row_chips(name):
-                if cut_col != "sub_strategy_name":
-                    return ""
-                meta = STRATEGY_REAL_DATA.get(str(name), {})
-                chips = meta.get("chips", []) or []
+                if cut_col == "sub_strategy_name":
+                    contrib_strats = [str(name)]
+                else:
+                    contrib_strats = (
+                        tier_pf[tier_pf[cut_col] == name]["sub_strategy_name"]
+                        .dropna().astype(str).unique().tolist()
+                    )
+                chip_counts = {}
+                chip_order  = []
+                for s in contrib_strats:
+                    meta = STRATEGY_REAL_DATA.get(s, {}) or {}
+                    for c in (meta.get("chips") or []):
+                        if c not in chip_counts:
+                            chip_counts[c] = 0
+                            chip_order.append(c)
+                        chip_counts[c] += 1
+                chips = sorted(chip_order,
+                               key=lambda c: (-chip_counts[c], chip_order.index(c)))
                 if not chips:
                     return '<span style="font-size:11.5px;color:var(--text-subtle);font-style:italic;">—</span>'
                 return "".join(
@@ -3168,7 +3644,10 @@ def page_strategy_detail(strat_agg, sub_strat_agg, portfolios_df, instruments_df
         scope_name = scope
 
     # Trend — follows the clicked tier; Pass 16 adds Utilisation view toggle
-    sd_trend_expand = st.session_state.pop("sd_trend_expand", False)
+    # Pass 29.8: sticky promotion — see Total Portfolio Trend for the rationale.
+    if st.session_state.pop("sd_trend_expand", False):
+        st.session_state["_sd_trend_open"] = True
+    sd_trend_expand = st.session_state.get("_sd_trend_open", False)
     with st.expander("📈 Strategy Trend", expanded=sd_trend_expand):
         sd_view_mode = st.radio(
             "View", ["Intransparency", "Utilisation"],
@@ -3188,15 +3667,15 @@ def page_strategy_detail(strat_agg, sub_strat_agg, portfolios_df, instruments_df
             total_vis = True if sd_focus == "Amber" else "legendonly"
             fig_st = go.Figure()
             fig_st.add_trace(go.Bar(x=sh["date"], y=sh["amber_pct"]*100, name="Amber",
-                                    marker_color="#e67e22", visible=amber_vis,
+                                    marker_color=_theme()["tier-amber-bright"], visible=amber_vis,
                                     hovertemplate="<b>%{x|%b %Y}</b><br>Amber: %{y:.1f}%<extra></extra>"))
             fig_st.add_trace(go.Bar(x=sh["date"], y=sh["red_pct"]*100, name="Red",
-                                    marker_color="#e74c3c", visible=red_vis,
+                                    marker_color=_theme()["tier-red-bright"], visible=red_vis,
                                     hovertemplate="<b>%{x|%b %Y}</b><br>Red: %{y:.1f}%<extra></extra>"))
             fig_st.add_trace(go.Scatter(x=sh["date"], y=sh["non_transparent_pct"]*100,
                                         mode="lines+markers", name="Total intransparency", visible=total_vis,
-                                        line=dict(color="#c0392b", width=2.5),
-                                        marker=dict(size=8, color="#c0392b", line=dict(color="#0e1117", width=1.5)),
+                                        line=dict(color=_theme()["tier-red-bright"], width=2.5),
+                                        marker=dict(size=8, color=_theme()["tier-red-bright"], line=dict(color=_theme()["plotly-marker-border"], width=1.5)),
                                         hovertemplate="<b>%{x|%b %Y}</b><br>Total: %{y:.1f}%<extra></extra>"))
             fig_st.update_layout(**DARK_LAYOUT, barmode="stack", yaxis_title="<b>% intransparency</b>", height=320,
                                  margin=dict(l=20, r=20, t=10, b=20),
@@ -3236,18 +3715,18 @@ def page_strategy_detail(strat_agg, sub_strat_agg, portfolios_df, instruments_df
             fig_st.add_trace(go.Scatter(
                 x=sh_util["date"], y=sh_util["red_util"],
                 mode="lines+markers", name="Red util %", visible=red_vis_u,
-                line=dict(color="#e74c3c", width=2.5),
-                marker=dict(size=8, color="#e74c3c", line=dict(color="#0e1117", width=1.5)),
+                line=dict(color=_theme()["tier-red-bright"], width=2.5),
+                marker=dict(size=8, color=_theme()["tier-red-bright"], line=dict(color=_theme()["plotly-marker-border"], width=1.5)),
                 hovertemplate="<b>%{x|%b %Y}</b><br>Red util: %{y:.1f}%<extra></extra>",
             ))
             fig_st.add_trace(go.Scatter(
                 x=sh_util["date"], y=sh_util["cum_util"],
                 mode="lines+markers", name="Amber + Red util %", visible=cum_vis_u,
-                line=dict(color="#e67e22", width=2.5),
-                marker=dict(size=8, color="#e67e22", line=dict(color="#0e1117", width=1.5)),
+                line=dict(color=_theme()["tier-amber-bright"], width=2.5),
+                marker=dict(size=8, color=_theme()["tier-amber-bright"], line=dict(color=_theme()["plotly-marker-border"], width=1.5)),
                 hovertemplate="<b>%{x|%b %Y}</b><br>Amber + Red util: %{y:.1f}%<extra></extra>",
             ))
-            fig_st.add_hline(y=100, line_dash="dash", line_color="#94A3B8",
+            fig_st.add_hline(y=100, line_dash="dash", line_color=_theme()["plotly-hline"],
                              annotation_text="Limit (100%)",
                              annotation_position="bottom right",
                              annotation_font_size=11)
@@ -3261,7 +3740,10 @@ def page_strategy_detail(strat_agg, sub_strat_agg, portfolios_df, instruments_df
 
 
     # Breakdown — group-scoped, 4 cuts, in an expander with an info tooltip
-    sd_breakdown_expand = st.session_state.pop("sd_breakdown_expand", False)
+    # Pass 29.8: sticky promotion — see Total Portfolio Trend for the rationale.
+    if st.session_state.pop("sd_breakdown_expand", False):
+        st.session_state["_sd_breakdown_open"] = True
+    sd_breakdown_expand = st.session_state.get("_sd_breakdown_open", False)
     with st.expander("\U0001f4ca Strategy Exposure breakdown", expanded=sd_breakdown_expand):
         st.markdown(
             '<div style="font-size:13px;color:var(--text-muted);margin:2px 0 10px;">'
@@ -3347,14 +3829,31 @@ def page_strategy_detail(strat_agg, sub_strat_agg, portfolios_df, instruments_df
                 f'<th style="padding:10px 12px;text-align:left;border-radius:0 6px 0 0;">Issue tags</th>'
                 '</tr></thead><tbody>'
             )
-            # Pass 26.2: build issue-tag chips lookup so we can render the
-            # spreadsheet drivers inline. Only meaningful when cut by Strategy;
-            # other cuts (Investment Type, asset_type) get a blank cell.
+            # Pass 26.2 / 28.2: render the spreadsheet drivers as inline chips.
+            # When Cut by = Strategy, the chips come straight from
+            # STRATEGY_REAL_DATA[strategy]. For other cuts (Portfolio,
+            # Investment Type, Asset type), we aggregate chips across every
+            # sub-strategy that contributes Amber/Red MV to this row's bucket,
+            # ranked by how many of those strategies the chip appears in.
             def _row_chips(name):
-                if cut_col != "sub_strategy_name":
-                    return ""
-                meta = STRATEGY_REAL_DATA.get(str(name), {})
-                chips = meta.get("chips", []) or []
+                if cut_col == "sub_strategy_name":
+                    contrib_strats = [str(name)]
+                else:
+                    contrib_strats = (
+                        tier_pf[tier_pf[cut_col] == name]["sub_strategy_name"]
+                        .dropna().astype(str).unique().tolist()
+                    )
+                chip_counts = {}
+                chip_order  = []
+                for s in contrib_strats:
+                    meta = STRATEGY_REAL_DATA.get(s, {}) or {}
+                    for c in (meta.get("chips") or []):
+                        if c not in chip_counts:
+                            chip_counts[c] = 0
+                            chip_order.append(c)
+                        chip_counts[c] += 1
+                chips = sorted(chip_order,
+                               key=lambda c: (-chip_counts[c], chip_order.index(c)))
                 if not chips:
                     return '<span style="font-size:11.5px;color:var(--text-subtle);font-style:italic;">—</span>'
                 return "".join(
@@ -3405,7 +3904,7 @@ def page_strategy_detail(strat_agg, sub_strat_agg, portfolios_df, instruments_df
     _scope_label = sel if _ap_scope_now == "Whole group" else _ap_scope_now
     scope_chip = (
         f'<span style="display:inline-block;font-size:11px;font-weight:700;letter-spacing:0.08em;'
-        f'text-transform:uppercase;color:var(--accent);background:rgba(29,78,216,0.08);'
+        f'text-transform:uppercase;color:var(--accent);background:var(--accent-tint-bg);'
         f'border:1px solid var(--accent);padding:3px 9px;border-radius:10px;margin-left:8px;'
         f'vertical-align:middle;" title="Set the scope via the Scope dropdown in the Details section above.">'
         f'Scope: {_scope_label}</span>'
@@ -3515,7 +4014,7 @@ def page_strategy_detail(strat_agg, sub_strat_agg, portfolios_df, instruments_df
             top_imp   = float(top_row["impact"])
             top_n     = int(top_row["n"])
             st.markdown(
-                f'<div style="background:rgba(29,78,216,0.08);border-left:3px solid var(--accent);'
+                f'<div style="background:var(--accent-tint-bg);border-left:3px solid var(--accent);'
                 f'padding:12px 16px;border-radius:4px;margin:10px 0 14px;">'
                 f'<p style="font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;'
                 f'color:var(--accent);margin:0 0 4px 0;">\u2605 Top opportunity</p>'
@@ -3601,16 +4100,18 @@ def page_strategy_detail(strat_agg, sub_strat_agg, portfolios_df, instruments_df
             # both colours completely outside the dashboard's existing palette
             # (red/amber for tiers, blue for accents) so they read as their own
             # visual category and pop against the table background in both themes.
+            # Pass 29: violet/teal palette now comes from theme tokens so the
+            # chips re-skin between cream and dark mode.
             count_chip = (
-                f'<span style="background:#7C3AED;color:#FFFFFF;font-size:11px;'
+                f'<span style="background:var(--chip-violet-bg);color:#FFFFFF;font-size:11px;'
                 f'padding:2px 8px;border-radius:10px;font-weight:700;margin-right:6px;'
                 f'letter-spacing:0.02em;">'
                 f'{n} missing</span>'
             )
             def _one(f, t):
                 tip = "Blocks Amber tier" if t == "Amber" else "Blocks Green tier"
-                return (f'<span title="{tip}" style="background:rgba(13,148,136,0.10);'
-                        f'color:#0F766E;border:1.5px solid #0D9488;font-size:11px;'
+                return (f'<span title="{tip}" style="background:var(--chip-teal-bg);'
+                        f'color:var(--chip-teal-fg);border:1.5px solid var(--chip-teal-border);font-size:11px;'
                         f'padding:1px 7px;border-radius:10px;margin-right:4px;'
                         f'display:inline-block;cursor:help;font-weight:500;">{f}</span>')
             field_chips = "".join(_one(f, t) for f, t in zip(lst, tiers))
@@ -3812,14 +4313,17 @@ def page_instrument_detail(instruments_df):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 _STATUS_STYLE = {
-    # Pass 25.7: spreadsheet-aligned statuses
-    "No initiative":   ("#B91C1C",                  "rgba(185,28,28,0.08)",  "rgba(185,28,28,0.30)"),
-    "Planned / TBD":   ("#B45309",                  "rgba(180,83,9,0.08)",   "rgba(180,83,9,0.30)"),
-    "In progress":     ("#15803D",                  "rgba(21,128,61,0.08)",  "rgba(21,128,61,0.30)"),
-    # Legacy aliases kept for any back-compat callsite
-    "Planned":         ("var(--text-muted)",        "var(--bg-track)",  "var(--border-default)"),
-    "In Progress":     ("#0E5A8A",                  "rgba(14,90,138,0.10)", "rgba(14,90,138,0.3)"),
-    "Done":            ("var(--color-ok)",          "rgba(39,174,96,0.10)",  "rgba(39,174,96,0.3)"),
+    # Pass 27.8 / 29: 3-column Kanban — colours read from theme tokens so the
+    # whole board flips between cream and dark modes automatically.
+    "Recommended Action Plan": ("var(--status-rec-fg)",  "var(--status-rec-bg)",  "var(--status-rec-border)"),
+    "In Progress":             ("var(--status-prog-fg)", "var(--status-prog-bg)", "var(--status-prog-border)"),
+    "Completed":               ("var(--status-done-fg)", "var(--status-done-bg)", "var(--status-done-border)"),
+    # Legacy aliases kept for any back-compat callsite — map onto same tokens.
+    "No initiative":           ("var(--status-rec-fg)",  "var(--status-rec-bg)",  "var(--status-rec-border)"),
+    "Planned / TBD":           ("var(--status-rec-fg)",  "var(--status-rec-bg)",  "var(--status-rec-border)"),
+    "In progress":             ("var(--status-done-fg)", "var(--status-done-bg)", "var(--status-done-border)"),
+    "Planned":                 ("var(--text-muted)", "var(--bg-track)", "var(--border-default)"),
+    "Done":                    ("var(--color-ok)",   "var(--status-done-bg)", "var(--status-done-border)"),
 }
 
 def _action_card_html(row):
@@ -3841,12 +4345,13 @@ def _action_card_html(row):
         right_text = f"Due in {days}d"
         right_color = "var(--text-muted)"
 
-    # Estimated impact chip \u2014 green emphasis since these are improvements
+    # Estimated impact chip \u2014 green emphasis since these are improvements.
+    # Pass 29: bg/border use done-status tokens so the chip dims in dark mode.
     impact = float(row.get("impact_pp", 0) or 0)
     impact_chip = (
-        f'<span style="background:rgba(21,128,61,0.10);color:var(--color-ok);padding:2px 8px;'
+        f'<span style="background:var(--status-done-bg);color:var(--status-done-fg);padding:2px 8px;'
         f'border-radius:10px;font-size:10px;font-weight:700;letter-spacing:0.04em;'
-        f'text-transform:uppercase;border:1px solid rgba(21,128,61,0.30);">'
+        f'text-transform:uppercase;border:1px solid var(--status-done-border);">'
         f'\u2212{impact:.1f}%</span>'
     ) if impact > 0 else ""
 
@@ -3854,8 +4359,8 @@ def _action_card_html(row):
         f'<div style="background:{bg};border:1px solid {br};border-radius:8px;padding:12px 14px;margin-bottom:10px;">'
         f'<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap;">'
         f'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'
-        f'<span style="background:{fg};color:#FFFFFF;padding:2px 8px;border-radius:10px;font-size:10px;'
-        f'font-weight:600;letter-spacing:0.04em;text-transform:uppercase;">{row["status"]}</span>'
+        f'<span style="background:{bg};color:{fg};border:1px solid {br};padding:2px 8px;border-radius:10px;font-size:10px;'
+        f'font-weight:700;letter-spacing:0.04em;text-transform:uppercase;">{row["status"]}</span>'
         f'{impact_chip}'
         f'</div>'
         f'<span style="font-size:11px;color:{right_color};font-weight:600;">{right_text}</span>'
@@ -3932,13 +4437,41 @@ def page_action_tracker(action_items_df, sub_strat_agg, sub_history_df):
         return
 
     # ── Kanban board ─────────────────────────────────────────────────────────
-    st.markdown(_section_band("Action Plan Board",
-                              f"{len(aif)} initiatives across the portfolio. Cards grouped by status."),
-                unsafe_allow_html=True)
+    # Pass 28.1: section subtitle now mirrors the Kanban column counts 1:1 and
+    # ties back to the 'Active breaches' summary on Total Portfolio. Previously
+    # the subtitle just read "{N} initiatives across the portfolio" which the
+    # user couldn't reconcile against either the Kanban columns or the AI obs.
+    # Pass 29.10: subtitle rewritten. Pass 28.1 promised a 1:1 reconciliation
+    # with the TP "Active breaches" line, but Pass 29.10 removed the "No
+    # initiative" placeholder cards from the Kanban — so the board now only
+    # shows actively-tracked items. The breaching strategies without a plan
+    # still surface on the A.I. Observations panel. Subtitle now explains
+    # that split honestly instead of claiming a reconciliation that no
+    # longer holds.
+    _n_rec  = int((aif["status"] == "Recommended Action Plan").sum())
+    _n_prog = int((aif["status"] == "In Progress").sum())
+    _n_open = _n_rec + _n_prog
+    _breach_names    = set(sub_strat_agg[sub_strat_agg["any_breach"]]["sub_strategy_name"]) \
+                       if "any_breach" in sub_strat_agg.columns else set()
+    _n_breaching     = len(_breach_names)
+    _tracked_breach  = set(aif[aif["status"] != "Completed"]["strategy_name"]) & _breach_names
+    _n_no_plan       = max(0, _n_breaching - len(_tracked_breach))
+    _no_plan_html    = (
+        f' <span style="color:var(--breach-text);"><b>{_n_no_plan}</b> additional '
+        f'breaching {"strategy has" if _n_no_plan==1 else "strategies have"} '
+        f'no tracked initiative yet</span> '
+        f'(see the <b>Active breaches</b> summary on Total Portfolio).'
+    ) if _n_no_plan > 0 else ""
+    _sub_html = (
+        f'<b>{_n_open}</b> initiative{"" if _n_open==1 else "s"} tracked — '
+        f'<b>{_n_prog}</b> In Progress, <b>{_n_rec}</b> Recommended Action Plan.'
+        f'{_no_plan_html}'
+    )
+    st.markdown(_section_band("Action Plan Board", _sub_html), unsafe_allow_html=True)
     # Pass 19.1: planned integration note — actions are read-only in the
     # prototype; production deployment will sync with the team's tracker.
     st.markdown(
-        '<div style="background:rgba(29,78,216,0.06);border-left:3px solid var(--accent);'
+        '<div style="background:var(--accent-tint-bg);border-left:3px solid var(--accent);'
         'border-radius:4px;padding:10px 14px;margin:-4px 0 14px 0;font-size:13px;'
         'color:var(--text-soft);line-height:1.5;">'
         '<b style="color:var(--accent);">ⓘ Integration note</b> &nbsp;·&nbsp; '
@@ -3949,8 +4482,8 @@ def page_action_tracker(action_items_df, sub_strat_agg, sub_history_df):
         '</div>',
         unsafe_allow_html=True,
     )
-    # Pass 25.7: Kanban now has 3 columns mirroring the spreadsheet pills.
-    statuses = ["No initiative", "Planned / TBD", "In progress"]
+    # Pass 27.8: 3-column Kanban — Recommended Action Plan / In Progress / Completed.
+    statuses = ["Recommended Action Plan", "In Progress", "Completed"]
     col_a, col_b, col_c = st.columns(3)
     for col, status in zip([col_a, col_b, col_c], statuses):
         with col:
@@ -4036,9 +4569,10 @@ def page_data_quality(portfolios_df, instruments_df, audit_df):
                   .apply(lambda x: sum(len(l) for l in x))
                   .reset_index(name="missing_count").sort_values("missing_count"))
             if not sm.empty and sm["missing_count"].sum() > 0:
+                _t = _theme()
                 fig_sm = px.bar(sm, x="missing_count", y="sub_strategy_name", orientation="h",
                                  color="missing_count",
-                                 color_continuous_scale=["#27ae60", "#e67e22", "#e74c3c"],
+                                 color_continuous_scale=[_t["tier-green-bright"], _t["tier-amber-bright"], _t["tier-red-bright"]],
                                  labels={"missing_count": "Count", "sub_strategy_name": ""})
                 fig_sm.update_layout(**DARK_LAYOUT, height=320, margin=dict(l=10, r=10, t=10, b=10),
                                       showlegend=False, coloraxis_showscale=False)
@@ -4078,8 +4612,8 @@ def page_data_quality(portfolios_df, instruments_df, audit_df):
         comp_df = pd.DataFrame({"date": dates, "completeness": comp})
         fig_c = px.line(comp_df, x="date", y="completeness", markers=True,
                          labels={"completeness": "Completeness (%)", "date": ""},
-                         color_discrete_sequence=["#27ae60"])
-        fig_c.add_hline(y=90, line_dash="dot", line_color="orange",
+                         color_discrete_sequence=[_theme()["tier-green-bright"]])
+        fig_c.add_hline(y=90, line_dash="dot", line_color=_theme()["tier-amber-bright"],
                          annotation_text="Target 90%", annotation_position="bottom right")
         fig_c.update_layout(**DARK_LAYOUT, height=230, margin=dict(l=20, r=20, t=10, b=20))
         st.plotly_chart(fig_c, use_container_width=True)
@@ -4433,7 +4967,7 @@ def page_whatif(sub_strat_agg, instruments_df, portfolios_df):
         y=chart_df["Strategy"],
         orientation="h",
         name="Current",
-        marker_color="#94A3B8",
+        marker_color=_theme()["text-subtle"],
         hovertemplate="<b>%{y}</b><br>Current: %{x:.2f}%<extra></extra>",
     ))
     fig.add_trace(go.Bar(
@@ -4441,7 +4975,7 @@ def page_whatif(sub_strat_agg, instruments_df, portfolios_df):
         y=chart_df["Strategy"],
         orientation="h",
         name="Simulated",
-        marker_color="#1D4ED8",
+        marker_color=_theme()["accent"],
         hovertemplate="<b>%{y}</b><br>Simulated: %{x:.2f}%<extra></extra>",
     ))
     fig.update_layout(
@@ -4496,290 +5030,4 @@ def page_glossary():
     # Single combined Intransparency Tiers card: data-requirements view +
     # risk-modelling view + the information-needed table from the framework deck.
     _ok_badge = '<span style="color:var(--color-ok);font-weight:800;">✓</span>'
-    _no_badge = '<span style="color:var(--breach-text);font-weight:800;">✗</span>'
-
-    def _subsection(title, color_var, items):
-        """Render a sub-section inside a tier row — an uppercase title in the
-        given accent colour followed by a bulleted list of items."""
-        bullets = "".join(
-            f'<li style="margin-bottom:2px;">{x}</li>' for x in items
-        )
-        return (
-            f'<div style="font-size:11px;color:{color_var};text-transform:uppercase;'
-            f'letter-spacing:0.08em;font-weight:700;margin-top:8px;margin-bottom:2px;">{title}</div>'
-            f'<ul style="margin:0;padding-left:18px;color:var(--text-soft);'
-            f'line-height:1.45;">{bullets}</ul>'
-        )
-
-    def _tier_row(data_def, name_badge, sys_badge, risk_summary, info_items, mgmt_items):
-        return (
-            # Top: the one-line data definition
-            f'<div style="margin-bottom:6px;">{data_def}</div>'
-            # Risk modelling view (check/cross badges)
-            f'<div style="font-size:11px;color:var(--text-subtle);text-transform:uppercase;'
-            f'letter-spacing:0.08em;font-weight:700;margin-top:8px;">Risk modelling view</div>'
-            f'<div style="margin-top:2px;">Name-level {name_badge} · Systematic {sys_badge} '
-            f'<span style="color:var(--text-soft);">— {risk_summary}</span></div>'
-            # Core & important information
-            f'{_subsection("Core &amp; important information", "var(--accent)", info_items)}'
-            # Risk assessment & portfolio management
-            f'{_subsection("Risk assessment &amp; portfolio management", "var(--accent)", mgmt_items)}'
-        )
-
-    _green_info = [
-        "Instrument name and Market Value",
-        "Key instrument attributes (asset type, development status, coupon, maturity)",
-        ("Critical company metrics, updated recurring: 1× Earnings (e.g. EBITDA), "
-         "1× Leverage (e.g. LTV), 1× Cashflow Coverage (e.g. ICR)"),
-    ]
-    _green_mgmt = [
-        "In-depth beyond MTM stress — assess portfolio quality and likelihood of impairment.",
-        ("Assure Risk / Audit Comm on private-credit quality; brief GEC on name-level "
-         "sanctions exposure; size high-risk exposures under stress."),
-        "<b>Portfolio mgmt: name-level actions possible where there is conviction.</b>",
-    ]
-
-    _amber_info = [
-        "Country and sector exposure",
-        "High-level asset-type mix (e.g. VC vs buyout, 1L vs 2L loans, Core vs Core+)",
-        ("High-level mix of attributes and risk sensitivities (e.g. weighted-average "
-         "duration, OAS, coupon, development status)"),
-    ]
-    _amber_mgmt = [
-        "High-level macro scenario analysis (e.g. HHT, stagflation) — captures MTM impacts only.",
-        "Assumes all constituents in a country / sector are equally affected in stress.",
-        "<b>Portfolio mgmt: country / sector overlays possible; name-level actions not possible.</b>",
-    ]
-
-    _red_info = [
-        "<i>No reliable instrument- or portfolio-level information available.</i>",
-    ]
-    _red_mgmt = [
-        "Very high level — wide cone of inaccuracy for exposure and scenario analysis.",
-        ("Must assume non-transparent holdings mirror industry country / sector "
-         "exposure and perform in line with industry beta in stress."),
-        "<b>Portfolio mgmt: not possible to a large extent.</b>",
-    ]
-
-    _section_card("Intransparency Tiers", [
-        ("Green",
-         _tier_row(
-             "Fully transparent. All Amber and Green data requirements are satisfied.",
-             _ok_badge, _ok_badge,
-             "good understanding of both systematic and name-level risk.",
-             _green_info, _green_mgmt)),
-        ("Amber",
-         _tier_row(
-             "Amber data requirements satisfied; one or more Green requirements missing.",
-             _no_badge, _ok_badge,
-             "good understanding of systematic risk, but poor understanding of name-level risk.",
-             _amber_info, _amber_mgmt)),
-        ("Red",
-         _tier_row(
-             "At least one Amber data requirement missing.",
-             _no_badge, _no_badge,
-             "poor understanding of both systematic and name-level risk.",
-             _red_info, _red_mgmt)),
-    ])
-
-    _section_card("Exposure cards", [
-        ("Red exposure",
-         "% of portfolio MV in the Red tier, measured against the Red policy limit."),
-        ("Amber + Red exposure",
-         "% of portfolio MV in the Amber + Red tiers combined, measured against the cumulative policy limit."),
-    ])
-
-    # Pass 25.8: Action status pills used on Action Tracker + cockpit widgets
-    _section_card("Action status", [
-        ("No initiative",
-         '<b style="color:#B91C1C;">No initiative</b> — strategy is in breach but '
-         'no remediation work is under way. Highest-priority backlog item for the '
-         'next planning cycle.'),
-        ("Planned / TBD",
-         '<b style="color:#B45309;">Planned / TBD</b> — remediation acknowledged; '
-         'scope, owner, or sequencing still being worked out.'),
-        ("In progress",
-         '<b style="color:#15803D;">In progress</b> — active initiative under way '
-         '(e.g. data vendor engaged, external parties onboarding).'),
-        ("N/A",
-         '<b style="color:#475569;">N/A</b> — status not applicable (e.g. sleeve '
-         'being closed, no exposure to track).'),
-    ])
-
-    _section_card("Utilisation status", [
-        ("Utilisation",
-         "Current exposure ÷ policy limit."),
-        ("OK",
-         "Utilisation <b>&lt; 80%</b>. <span style=\"color:var(--color-ok);font-weight:700;\">Green</span> border."),
-        ("ALERT",
-         "Utilisation <b>80% to 100%</b>. <span style=\"color:var(--color-alert);font-weight:700;\">Amber</span> border."),
-        ("BREACH",
-         "Utilisation <b>&gt; 100%</b>. <span style=\"color:var(--breach-text);font-weight:700;\">Red</span> border."),
-    ])
-
-    _section_card("Action plan metrics", [
-        ("Impact (%)",
-         "Drop in this Strategy’s Amber + Red utilisation if the holding is resolved to Green."),
-        ("Cumulative impact",
-         "Sum of Impact for the top N opportunities."),
-        ("Owner team",
-         "<b>Strategy Ops</b>, <b>Deal Team & Legal</b>, or <b>CISD</b>."),
-        ("Estimated impact",
-         "Per-action % reduction in Amber + Red utilisation."),
-        ("Overdue chip",
-         "<span style=\"color:var(--alert-text);font-weight:700;\">Amber</span> if &lt; 60 days past target; <span style=\"color:var(--breach-text);font-weight:700;\">red</span> if 60+ days past."),
-    ])
-
-    st.markdown(
-        '<p style="text-align:center;color:var(--text-subtle);font-size:11px;font-style:italic;'
-        'margin-top:24px;">Definitions track the current policy framework — please flag any drift to the Risk team.</p>',
-        unsafe_allow_html=True,
-    )
-
-
-# ===========================================================================
-# Main
-# ===========================================================================
-
-def _render_page_title(title: str, *, show_stats: bool = False, font_size: int = 38):
-    """Render the page title in a row with the theme toggle on the right.
-    show_stats=True puts stats + toggle in the same right-side column so they
-    sit on the exact same baseline (sibling columns drift)."""
-    try:
-        if show_stats:
-            # Title left, stats+toggle right. Both right-side widgets live in
-            # the SAME column via a nested sub-column row so their baseline matches.
-            title_col, right_col = st.columns([7, 3], vertical_alignment="center")
-        else:
-            title_col, right_col = st.columns([9, 1], vertical_alignment="center")
-    except TypeError:
-        if show_stats:
-            title_col, right_col = st.columns([7, 3])
-        else:
-            title_col, right_col = st.columns([9, 1])
-
-    with title_col:
-        st.markdown(
-            f'<h1 style="font-size:{font_size}px;font-weight:700;color:var(--text-primary);'
-            f'margin:0;padding:0;line-height:1.1;">{title}</h1>',
-            unsafe_allow_html=True,
-        )
-
-    with right_col:
-        if show_stats:
-            # Nested sub-cols inside the right column so stats and toggle share
-            # the same row baseline. The toggle widget brings its own vertical
-            # centering; setting the stats vertical_alignment to "center" matches.
-            try:
-                meta_sub, toggle_sub = st.columns([3, 2], vertical_alignment="center")
-            except TypeError:
-                meta_sub, toggle_sub = st.columns([3, 2])
-            with meta_sub:
-                n_groups = int(st.session_state.get("_meta_n_groups", 0))
-                n_ports  = int(st.session_state.get("_meta_n_portfolios", 0))
-                # Pass 24.11: transform-translateY to nudge stats up to match the
-                # toggle widget's visual baseline (Streamlit's toggle chrome offsets it
-                # ~4-5px lower than where plain text would center).
-                st.markdown(
-                    f'<div style="text-align:right;font-size:12px;color:var(--text-subtle);'
-                    f'padding:0;margin:0;line-height:1;transform:translateY(-6px);">'
-                    f'\u00b7 <strong style="color:var(--text-primary);font-weight:600;">{n_groups}</strong> strategy groups '
-                    f'\u00b7 <strong style="color:var(--text-primary);font-weight:600;">{n_ports}</strong> portfolios</div>',
-                    unsafe_allow_html=True,
-                )
-            with toggle_sub:
-                _render_theme_toggle()
-        else:
-            _render_theme_toggle()
-
-
-def _render_theme_toggle():
-    """Render the Light/Dark theme toggle. Extracted so it can be reused in
-    nested column layouts (e.g. Total Portfolio's title row)."""
-    is_cream = st.session_state["theme_mode"] == "cream"
-    new_cream = st.toggle("Light", value=is_cream, key="theme_toggle",
-                          help="Switch between light (white) and dark theme")
-    new_mode = "cream" if new_cream else "dark"
-    if new_mode != st.session_state["theme_mode"]:
-        st.session_state["theme_mode"] = new_mode
-        st.query_params["theme"] = new_mode
-        st.rerun()
-
-
-
-def main():
-    (strategies_df, sub_strategies_df, portfolios_df, instruments_df,
-     strat_agg, sub_strat_agg, history_df, sub_history_df, audit_df,
-     action_items_df) = generate_all_data(_tier_mix_signature())
-
-    # Theme — must be initialised BEFORE any markdown/plot helper renders.
-    # Theme persistence (Pass 10): read ?theme= from URL so it survives any
-    # full-page navigation (clicking an exposure card / strategy widget triggers
-    # a hard reload that resets session_state).
-    try:
-        _qt = st.query_params.get("theme")
-    except Exception:
-        _qt = None
-    if _qt in ("dark", "cream"):
-        st.session_state["theme_mode"] = _qt
-    if "theme_mode" not in st.session_state:
-        st.session_state["theme_mode"] = "cream"
-    _render_theme_css()
-
-    # Pass 24.8: top brand bar removed entirely per user feedback.
-    # Stash meta counts so the per-page title helper can show "N strategy groups · N portfolios".
-    st.session_state["_meta_n_groups"]     = len(strat_agg)
-    st.session_state["_meta_n_portfolios"] = len(portfolios_df)
-
-
-    PAGES = ["Total Portfolio", "Strategy Detail", "Action Tracker",
-             "Data Quality", "What-If Simulator", "Glossary"]
-
-    if "active_page" not in st.session_state:
-        st.session_state["active_page"] = "Total Portfolio"
-
-    # Deep-link: "Investigate breach" buttons carry ?goto=strategy&name=<Group>
-    # plus optional &sdfocus=<Tier>&sdstrat=<Group>. We promote the page nav and the
-    # selected Group here, but we do NOT clear sdfocus/sdstrat — page_strategy_detail
-    # reads them at the top and clears once consumed (so the focused card is set).
-    if st.query_params.get("goto") == "strategy":
-        st.session_state["active_page"] = "Strategy Detail"
-        _nm = st.query_params.get("name")
-        if _nm:
-            st.session_state["sd_sel"] = _nm     # preselect the Strategy Group
-        _sc = st.query_params.get("sdscope")
-        if _sc:
-            st.session_state["sd_scope"] = _sc   # narrow Scope dropdown to clicked Strategy
-        # Clear navigation keys (goto + name + sdscope). Leave sdfocus + sdstrat
-        # for page_strategy_detail to consume.
-        for _k in ("goto", "name", "sdscope"):
-            try:
-                del st.query_params[_k]
-            except Exception:
-                pass
-    elif st.query_params.get("sdfocus"):
-        # Strategy Detail exposure-card drill-through — keep the user on Strategy Detail
-        # (a full page reload from the <a href> resets session state, so reconstruct it here)
-        st.session_state["active_page"] = "Strategy Detail"
-        _s = st.query_params.get("sdstrat")
-        if _s:
-            st.session_state["sd_sel"] = _s
-        # sdfocus/sdstrat left in the URL for page_strategy_detail to consume + clear
-
-        # Tab-styled horizontal nav, session-state controlled (so it can be switched in code)
-    active = st.radio(
-        "Navigation", PAGES,
-        key="active_page",
-        horizontal=True,
-        label_visibility="collapsed",
-    )
-
-    if   active == "Total Portfolio":   page_portfolio_overview(strat_agg, sub_strat_agg, portfolios_df, history_df, sub_history_df, instruments_df)
-    elif active == "Strategy Detail":   page_strategy_detail(strat_agg, sub_strat_agg, portfolios_df, instruments_df, history_df, sub_history_df)
-    elif active == "Action Tracker":    page_action_tracker(action_items_df, sub_strat_agg, sub_history_df)
-    elif active == "Data Quality":      page_data_quality(portfolios_df, instruments_df, audit_df)
-    elif active == "What-If Simulator": page_whatif(sub_strat_agg, instruments_df, portfolios_df)
-    elif active == "Glossary":          page_glossary()
-
-if __name__ == "__main__":
-    main()
+    _no_badge = '<span style="color:var(--breach-text);font-weight:8
