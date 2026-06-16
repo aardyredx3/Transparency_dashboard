@@ -5029,8 +5029,12 @@ def page_glossary():
 
     # Single combined Intransparency Tiers card: data-requirements view +
     # risk-modelling view + the information-needed table from the framework deck.
-    _ok_badge = '<span style="color:var(--color-ok);font-weight:800;">✓</span>'
-    _no_badge = '<span style="color:var(--breach-text);font-weight:800;">✗</span>'
+    # Pass 29.15: use HTML entities (&#10003; / &#10007;) instead of the raw
+    # ✓ / ✗ Unicode glyphs so the source file is pure ASCII. Some upload paths
+    # (GitHub web UI / Streamlit Cloud) re-encode the file and mangle multi-
+    # byte UTF-8 characters, producing "unterminated string literal" errors.
+    _ok_badge = '<span style="color:var(--color-ok);font-weight:800;">&#10003;</span>'
+    _no_badge = '<span style="color:var(--breach-text);font-weight:800;">&#10007;</span>'
 
     def _subsection(title, color_var, items):
         """Render a sub-section inside a tier row — an uppercase title in the
