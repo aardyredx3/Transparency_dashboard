@@ -13,6 +13,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import random
+import math
 from io import BytesIO
 from urllib.parse import quote
 
@@ -373,7 +374,7 @@ STRATEGY_FAMILY = {
     "MAARS":                 {"direct": "Macro Fund",                            "fund": "Macro Fund"},
     "EILB":                  {"direct": "Equity Long-Only Fund",                 "fund": "Equity Long-Only Fund"},
     "MA":          {"direct": "Hedge Fund",                            "fund": "Hedge Fund"},
-    "Hedge Fund 2":          {"direct": "Hedge Fund",                            "fund": "Hedge Fund"},
+    # Pass 30.3: Hedge Fund 2 merged into Multi Asset1 — entry deleted.
     "RE Bricks and Mortar":  {"direct": "Unlisted RE B&M",                       "fund": "RE B&M Fund"},
     "RE Debt":               {"direct": "Credit Single-Asset (private-aligned)", "fund": "Credit Fund (private-aligned)"},
     "PE Active":             {"direct": "Unlisted PE",                           "fund": "PE Fund"},
@@ -787,6 +788,55 @@ PRODUCT_GROUPING = {
     "Real Estate":      "Private",
 }
 
+# Pass 30: asset-class grouping replaces the Public/Private cut on the Total
+# Portfolio strategy panel. The mapping is at the LEAF Strategy level (not
+# Strategy Group). Pass 30.3: Hedge Fund 2 was merged into Multi Asset1, so
+# the Hedge Funds asset class now contains only MA.
+ASSET_CLASS_MAP = {
+    # Alternatives (7 strategies — fills row 1)
+    "PE Active":               "Alternatives",
+    "PE Secondaries":          "Alternatives",
+    "PE Mezz":                 "Alternatives",
+    "RE Bricks and Mortar":    "Alternatives",
+    "RE Debt":                 "Alternatives",
+    "Infrastructure Active":   "Alternatives",
+    "Infrastructure Debt":     "Alternatives",
+    # Fixed Income & Credit (4 strategies — Pass 30.1 moved MAARS in here
+    # because the user classes it as a credit/fixed-income strategy rather
+    # than multi-asset).
+    "FI Active":               "Fixed Income & Credit",
+    "HY Credit":               "Fixed Income & Credit",
+    "EILB":                    "Fixed Income & Credit",
+    "MAARS":                   "Fixed Income & Credit",
+    # Equity (2 strategies)
+    "EQ Developed Markets":    "Equity",
+    "EQ Emerging Markets":     "Equity",
+    # Hedge Funds (1 strategy — Pass 30.3 merged Hedge Fund 2 into Multi Asset1)
+    "MA":                      "Hedge Funds",
+    # Multi-Asset (1 strategy — Multi Asset1 absorbed Hedge Fund 2's data)
+    "Multi Asset1":            "Multi-Asset",
+}
+
+# Pass 30.1: row-by-row packing config so multiple asset classes can share
+# a single row when their combined widget count <= COCKPIT_COLS_PER_ROW.
+# This keeps the page short — without this, FI&C / Equity / Multi-Asset /
+# Hedge Funds would each take their own row even though they have only 2-4
+# strategies each. Widget WIDTH is held constant across all rows by using a
+# fixed COCKPIT_COLS_PER_ROW-column grid per row (see _build_cockpit_grid).
+COCKPIT_COLS_PER_ROW = 7
+ASSET_CLASS_ROWS = [
+    ["Equity", "Fixed Income & Credit", "Hedge Funds"],
+    ["Alternatives"],
+    ["Multi-Asset"],
+]
+# Flat order list (back-compat for any code that still references it).
+ASSET_CLASS_ORDER = [ac for row in ASSET_CLASS_ROWS for ac in row]
+
+# Pass 30: feature flag for the experimental semi-donut exposure visual.
+# Flip to False to revert the top-row exposure block back to the existing
+# two stacked rectangular cards rendered by _total_exposure_card_html.
+USE_DONUTS = True
+
 # Sub-strategies (= new "Strategy") — thresholds live HERE now.
 # Format per child: (sub_id, sub_name, thr_red, thr_amber, thr_cum)
 # Pass 18: proposed policy limits applied from the stakeholder spreadsheet.
@@ -815,9 +865,8 @@ SUB_STRATEGY_META = {
         # HF1 takes MA data: spreadsheet was A+R 100% / Red 25% → buffered to 100% / 30%
         # (A+R buffered to 105% but capped at 100% per user instruction)
         ("S03a", "MA",                   0.30, 1.00, 1.00),
-        # Pass 29.14: HF2 mapped to SOG. Spreadsheet was Red 60% / A+R 60%
-        # → buffered to Red 65% / A+R 65%.
-        ("S03b", "Hedge Fund 2",         0.65, 0.65, 0.65),
+        # Pass 30.3: Hedge Fund 2 (S03b) merged into Multi Asset1 in G07 —
+        # entry removed. Multi Asset1 absorbs the MV share + tier mix here.
     ],
     "G04": [
         ("S04a", "RE Bricks and Mortar", 0.05, 0.16, 0.16),     # was 0.00 / 0.11
@@ -853,7 +902,7 @@ TIER_MIX = {
     "MAARS":                        [0.88, 0.00, 0.12],
     "EILB":                         [1.00, 0.00, 0.00],
     "MA":                 [0.00, 0.55, 0.45],
-    "Hedge Fund 2":                 [0.78, 0.13, 0.09],
+    # Pass 30.3: Hedge Fund 2 merged into Multi Asset1 — entry removed.
     "RE Bricks and Mortar":         [0.62, 0.38, 0.00],
     "RE Debt":                      [0.99, 0.01, 0.00],
     "PE Active":                    [0.15, 0.80, 0.05],
@@ -915,12 +964,7 @@ STRATEGY_REAL_DATA = {
         "status":   "In progress",
         "action":   "Engaging data vendor to collect fund-level data from managers' PDF reports",
     },
-    "Hedge Fund 2": {  # no spreadsheet mapping — leave as no initiative
-        "driver":   "Missing metrics",
-        "chips":    ["metrics"],
-        "status":   "No initiative",
-        "action":   "",
-    },
+    # Pass 30.3: Hedge Fund 2 merged into Multi Asset1 — entry removed.
     "RE Bricks and Mortar": {
         "driver":   "Missing metrics",
         "chips":    ["metrics"],
@@ -984,7 +1028,7 @@ EXPOSURE_TARGETS = {
     "MAARS":                  (0.11, 0.11),
     "EILB":                   (0.00, 0.00),
     "MA":           (1.00, 0.50),
-    "Hedge Fund 2":           None,           # no spreadsheet mapping
+    # Pass 30.3: Hedge Fund 2 merged into Multi Asset1 — entry removed.
     "RE Bricks and Mortar":   (0.40, 0.00),
     "RE Debt":                (0.02, 0.00),
     "PE Active":              (0.74, 0.12),
@@ -1007,7 +1051,7 @@ STRATEGY_MV_WEIGHTS = {
     "MAARS":                 0.0048,
     "EILB":                  0.0932,
     "MA":          0.0039,
-    "Hedge Fund 2":          0.0302,
+    # Pass 30.3: Hedge Fund 2 (0.0302) merged into Multi Asset1 below.
     "RE Bricks and Mortar":  0.1284,
     "RE Debt":               0.0835,
     "PE Active":             0.0048,
@@ -1015,7 +1059,7 @@ STRATEGY_MV_WEIGHTS = {
     "PE Mezz":               0.0043,
     "Infrastructure Active": 0.0815,
     "Infrastructure Debt":   0.0048,
-    "Multi Asset1":          0.2147,
+    "Multi Asset1":          0.2449,
 }
 
 
@@ -2168,9 +2212,16 @@ def _cockpit_widget_html(row, expanded=True, show_investigate=True):
     #  expanded   → min-height:230px + flex column (so the breach footer docks to the bottom)
     #  collapsed  → tight padding, no min-height, so all 16 cards fit above the fold
     if expanded:
+        # Pass 30.15: flex:1 + height:100% so the widget stretches to fill
+        # its grid cell (which itself stretches to match the tallest widget
+        # in the row via the parent grid's default align-items:stretch).
+        # Without this, content-light widgets render shorter than chip-heavy
+        # widgets in the same row, producing the uneven card heights the
+        # user flagged after Pass 30.14.
         container_style = (f'background:{bg_tint};border:{border_width} solid {border_color};'
                            f'border-radius:8px;padding:10px 12px;'
-                           f'display:flex;flex-direction:column;min-height:230px;')
+                           f'display:flex;flex-direction:column;min-height:230px;'
+                           f'flex:1;height:100%;box-sizing:border-box;')
     else:
         # Pass 25.11: min-height on the collapsed state so cards with single-line
         # Strategy names match the height of cards whose names wrap to 2 lines
@@ -2311,6 +2362,149 @@ def _cockpit_widget_html(row, expanded=True, show_investigate=True):
     return f'<div class="cockpit-static" style="{container_style}">{inner}</div>'
 
 
+
+
+def _total_exposure_donut_html(label, util_pct, value_pct, limit_pct, color, breach,
+                               href=None, tooltip=None):
+    """Pass 30.4 / 30.5: Gemini-style 270-degree speedometer gauge. Two-zone
+    rim (green 0-80%, amber 80-100%) with a needle pointer at the current
+    util %. Big util % beneath the needle, exposure/limit caption underneath.
+    Border colour and centre number colour tie to the existing OK / Alert
+    / Breach taxonomy. Click behaviour (href) unchanged.
+    Pass 30.5: bumped radius / stroke / header font, dropped the red zone
+    and the 90% threshold label (they overlapped) so amber covers 80-100%."""
+    # Geometry: 270-degree arc from 7 o'clock (math angle 225 deg) clockwise
+    # through the top to 5 o'clock (-45 deg).
+    # Pass 30.8: re-bumped gauge after Pass 30.7 ended up too small. r=90,
+    # stroke=24, cy=112 gives a gauge that uses the card vertical space
+    # well, and the card itself stretches via CSS to match A.I. Observations
+    # panel height (see expo-stack rules + flex:1 1 auto on .exposure-card).
+    cx, cy = 140, 112
+    r = 90
+    stroke_w = 24
+    arc_len = 2.0 * math.pi * r * 0.75   # 270-degree share of circumference
+
+    # Two-zone rim: green 0-80%, amber 80-100%. Pass 30.5: the previous
+    # narrow red zone (90-100%) was visually noisy and conflicted with the
+    # framework's two-tier OK / Alert thresholds.
+    green_len = arc_len * 0.80
+    amber_len = arc_len * 0.20
+
+    # Centre number colour + state pill (top-right corner, Pass 30.11).
+    if breach:
+        num_color    = "var(--breach-text)"
+        border_color = "var(--color-red-fill)"
+        state_text   = "BREACH"
+        state_fg     = "var(--breach-text)"
+        state_bg     = "var(--tint-breach-bg)"
+    elif util_pct >= 80:
+        num_color    = "var(--alert-text)"
+        border_color = "var(--alert-border)"
+        state_text   = "ALERT"
+        state_fg     = "var(--alert-text)"
+        state_bg     = "var(--tint-alert-bg)"
+    else:
+        num_color    = "var(--ok-text)"
+        border_color = "var(--color-ok)"
+        state_text   = "OK"
+        state_fg     = "var(--ok-text)"
+        state_bg     = "var(--tint-ok-bg)"
+
+    # Needle: angle goes from 225 deg (start, 0%) clockwise to -45 deg (end, 100%)
+    fill_pct = max(0.0, min(util_pct, 100.0))
+    needle_deg = 225.0 - (fill_pct / 100.0) * 270.0
+    needle_rad = math.radians(needle_deg)
+    needle_tip_r   = r - 6
+    needle_tip_x   = cx + needle_tip_r * math.cos(needle_rad)
+    needle_tip_y   = cy - needle_tip_r * math.sin(needle_rad)
+    base_offset_rad = needle_rad + math.pi / 2.0
+    base_x1 = cx + 6 * math.cos(base_offset_rad)
+    base_y1 = cy - 6 * math.sin(base_offset_rad)
+    base_x2 = cx - 6 * math.cos(base_offset_rad)
+    base_y2 = cy + 6 * math.sin(base_offset_rad)
+
+    # 270-degree arc path: start at 7 o'clock, sweep CW through top to 5 o'clock
+    start_rad = math.radians(225.0)
+    end_rad   = math.radians(-45.0)
+    sx = cx + r * math.cos(start_rad)
+    sy = cy - r * math.sin(start_rad)
+    ex = cx + r * math.cos(end_rad)
+    ey = cy - r * math.sin(end_rad)
+    arc_d = f"M {sx:.2f} {sy:.2f} A {r} {r} 0 1 1 {ex:.2f} {ey:.2f}"
+
+    # 80% threshold label position (outside the rim). Pass 30.5: dropped the
+    # 90% label entirely — at this gauge size the two labels overlapped.
+    # Pass 30.6: push label further out (r + 30) so it clears the arc itself
+    # — the previous +20 offset placed it on top of the amber rim segment.
+    deg_80 = 225.0 - 0.80 * 270.0
+    rad_80 = math.radians(deg_80)
+    lab80_x = cx + (r + 30) * math.cos(rad_80)
+    lab80_y = cy - (r + 30) * math.sin(rad_80)
+
+    overshoot = f' · +{util_pct - 100:.0f}% over' if breach else ''
+    info = (f' <span title="{tooltip}" style="color:var(--text-subtle);cursor:help;font-size:13px;">ⓘ</span>'
+            if tooltip else "")
+    click_hint = (' <span style="color:var(--accent);font-size:13px;font-weight:700;">↗</span>' if href else "")
+
+    inner = (
+        f'<div class="exposure-card" style="background:var(--bg-surface);border:2px solid {border_color};'
+        f'border-radius:8px;padding:12px 14px 12px 14px;display:flex;flex-direction:column;'
+        # Pass 30.6: flex:1 instead of height:100% so the card stretches
+        # to fill its parent column (set up by the wrapper to be a flex
+        # column). Combined with the spacer below the caption this pushes
+        # the caption to the bottom of the card.
+        f'align-items:center;flex:1 1 auto;min-height:0;">'
+        # Pass 30.11: header row = title on the left + OK/ALERT/BREACH pill
+        # on the top-right. The colour cue (number + border + needle zone)
+        # is already there; the pill adds the readable text label for
+        # accessibility and quick scan.
+        f'<div style="display:flex;justify-content:space-between;align-items:center;'
+        f'width:100%;margin-bottom:0;gap:8px;">'
+        f'<div style="font-size:20px;font-weight:800;color:var(--text-primary);'
+        f'letter-spacing:0.01em;line-height:1.15;">{label}{info}{click_hint}</div>'
+        f'<div style="font-size:11px;font-weight:700;letter-spacing:0.08em;'
+        f'padding:3px 10px;border-radius:10px;border:1px solid {state_fg};'
+        f'color:{state_fg};background:{state_bg};white-space:nowrap;flex-shrink:0;">'
+        f'{state_text}</div>'
+        f'</div>'
+        # Pass 30.8: viewBox 280x195, max-width 340 → SVG renders ~225px
+        # tall on a typical column width. Combined with the card's flex
+        # stretch this lands roughly in line with the A.I. Observations
+        # panel height.
+        f'<svg viewBox="0 0 280 195" style="width:100%;max-width:340px;height:auto;display:block;margin:0 auto;" aria-hidden="true">'
+        # Two coloured zones along the same 270-deg arc path.
+        f'<path d="{arc_d}" fill="none" stroke="var(--color-ok)" stroke-width="{stroke_w}" '
+        f'stroke-linecap="butt" stroke-dasharray="{green_len:.1f} {arc_len:.1f}"></path>'
+        f'<path d="{arc_d}" fill="none" stroke="var(--color-amber-fill)" stroke-width="{stroke_w}" '
+        f'stroke-linecap="butt" stroke-dasharray="{amber_len:.1f} {arc_len:.1f}" '
+        f'stroke-dashoffset="-{green_len:.1f}"></path>'
+        # Single 80% threshold label outside the rim
+        f'<text x="{lab80_x:.1f}" y="{lab80_y:.1f}" text-anchor="middle" dominant-baseline="middle" '
+        f'font-size="13" fill="var(--text-soft)" font-weight="700">80%</text>'
+        # Needle: triangle from base behind centre to tip near rim
+        f'<polygon points="{base_x1:.2f},{base_y1:.2f} {needle_tip_x:.2f},{needle_tip_y:.2f} '
+        f'{base_x2:.2f},{base_y2:.2f}" fill="var(--text-primary)" stroke="var(--text-primary)" '
+        f'stroke-linejoin="round" stroke-width="1.4"></polygon>'
+        # Needle hub
+        f'<circle cx="{cx}" cy="{cy}" r="8" fill="var(--text-primary)"></circle>'
+        # Big centre number — Pass 30.8: bumped back to 46px to suit the
+        # larger gauge.
+        f'<text x="{cx}" y="{cy + 54}" text-anchor="middle" font-size="46" font-weight="800" '
+        f'fill="{num_color}" style="font-variant-numeric:tabular-nums;">{util_pct:.0f}%</text>'
+        f'</svg>'
+        # Exposure / limit caption — Pass 30.6: margin-top:auto pushes it
+        # to the bottom of the stretched flex card so the white space
+        # between the gauge and caption distributes naturally as the card
+        # grows to match A.I. Observations panel height.
+        f'<div style="font-size:13px;color:var(--text-soft);font-variant-numeric:tabular-nums;margin-top:auto;padding-top:4px;text-align:center;">'
+        f'<span style="color:var(--text-primary);font-weight:500;">{value_pct:.0f}%</span> exposure '
+        f'/ <span style="font-weight:500;">{limit_pct:.0f}%</span> limit{overshoot}'
+        f'</div>'
+        f'</div>'
+    )
+    if href:
+        return f'<a href="{href}" class="card-link" target="_self" style="text-decoration:none;">{inner}</a>'
+    return inner
 
 
 def _total_exposure_card_html(label, util_pct, value_pct, limit_pct, color, breach, href=None, tooltip=None):
@@ -2586,26 +2780,118 @@ def _ai_observations_html(strat_agg, sub_strat_agg, portfolios_df, history_df, s
                 )
 
     # ── Top contributors (always-visible) ────────────────────────────────────
-    ar_inst = portfolios_df[portfolios_df["tier"].isin(["Amber","Red"])]
-    if len(ar_inst):
-        _tot_mv  = float(portfolios_df["mv"].sum())
-        _by_strat = (ar_inst.groupby("sub_strategy_name")["mv"].sum() / _tot_mv * 100
-                     if _tot_mv > 0 else None)
-        if _by_strat is not None and len(_by_strat):
-            _top = _by_strat.sort_values(ascending=False).head(4)
-            _bits = [
-                f'<b>{name}</b> (<span class="kpi-number" style="color:var(--breach-text);">{v:.0f}%</span>)'
-                for name, v in _top.items() if v > 0.005
-            ]
-            if _bits:
-                always_sections.append(
-                    f'<div style="margin-bottom:6px;">'
-                    f'<div class="metric-label" style="margin-bottom:2px;color:var(--breach-text);">Top contributors</div>'
-                    f'<div style="font-size:14px;color:var(--text-soft);line-height:1.5;">'
-                    f'The biggest drivers of current Amber + Red exposure are '
-                    f'{", ".join(_bits)}.'
-                    f'</div></div>'
-                )
+    # Pass 30: swap the comma-separated text line for a compact horizontal bar
+    # chart. Same underlying data (leaf sub_strategy_name × portfolio % MV of
+    # Amber + Red exposure) — visual rank ordering is now glanceable rather
+    # than parsed from prose. Top 5 rows; bars scaled relative to the leader.
+    # Pass 30.6: HTML is captured here but APPENDED LATER (after Active
+    # breaches) so the bar chart sits at the bottom of the always-visible
+    # block per user feedback.
+    # Pass 30.17: toggle between two views — "By exposure" (the original
+    # ranking by % of portfolio MV in Amber+Red) and "By utilisation"
+    # (ranked by cum_utilisation = A+R exposure / limit). Selection
+    # persists via ?topview=exp|util in the URL. Two HTML <a> tabs sit
+    # where the static "TOP CONTRIBUTORS" label used to be.
+    top_contributors_html = ""
+    try:
+        _topview = str(st.query_params.get("topview") or "exp").lower()
+    except Exception:
+        _topview = "exp"
+    if _topview not in ("exp", "util"):
+        _topview = "exp"
+
+    # Build the ranked rows for whichever view is active.
+    # Pass 30.18: "By utilisation" now shows each strategy's CONTRIBUTION
+    # to the portfolio-level A+R utilisation (which strategies are pushing
+    # us toward the 77%). Formula: (strategy A+R as % portfolio MV) /
+    # portfolio A+R limit × 100. The five values sum to the portfolio
+    # utilisation, so the leader genuinely "owns" that share of the breach.
+    _top_rows = []
+    _sub_label = ""
+    if _topview == "util":
+        ar_inst = portfolios_df[portfolios_df["tier"].isin(["Amber","Red"])]
+        if len(ar_inst):
+            _tot_mv  = float(portfolios_df["mv"].sum())
+            _limit_pct = float(TOTAL_PORTFOLIO_CUM_LIMIT) * 100.0  # e.g. 25.0
+            if _tot_mv > 0 and _limit_pct > 0:
+                _by_strat = (ar_inst.groupby("sub_strategy_name")["mv"].sum() / _tot_mv * 100)
+                # Each strategy's contribution to portfolio A+R utilisation.
+                _contrib_util = (_by_strat / _limit_pct * 100.0)
+                _top = _contrib_util.sort_values(ascending=False).head(5)
+                _top_rows = [(str(name), float(v))
+                             for name, v in _top.items() if v > 0.05]
+        _sub_label = ("Contribution to portfolio Amber + Red utilisation "
+                      "(sum across all strategies = portfolio util %).")
+    else:
+        ar_inst = portfolios_df[portfolios_df["tier"].isin(["Amber","Red"])]
+        if len(ar_inst):
+            _tot_mv  = float(portfolios_df["mv"].sum())
+            _by_strat = (ar_inst.groupby("sub_strategy_name")["mv"].sum() / _tot_mv * 100
+                         if _tot_mv > 0 else None)
+            if _by_strat is not None and len(_by_strat):
+                _top = _by_strat.sort_values(ascending=False).head(5)
+                _top_rows = [(str(name), float(v)) for name, v in _top.items() if v > 0.005]
+        _sub_label = "Share of total portfolio MV held in Amber + Red instruments."
+
+    if _top_rows:
+        _max_v = max(v for _, v in _top_rows) or 1.0
+        # Pass 30.18: amber ramp for Utilisation view (signals risk drift
+        # toward limit), blue ramp for Exposure view (neutral). The two
+        # palettes make the toggle's effect immediately obvious.
+        if _topview == "util":
+            _palette = ["#C2410C", "#E4811C", "#F0A146", "#F8C58A", "#FCDEB8"]
+        else:
+            _palette = ["#1D4ED8", "#3163E0", "#5180E8", "#7AA0F0", "#A6BFF5"]
+        _rows_html = ""
+        for i, (name, v) in enumerate(_top_rows):
+            bar_w   = (v / _max_v) * 100.0
+            bar_col = _palette[min(i, len(_palette) - 1)]
+            _rows_html += (
+                '<div style="display:grid;grid-template-columns:130px minmax(0,1fr);'
+                'align-items:center;column-gap:10px;margin-bottom:4px;">'
+                f'<div style="font-size:12px;color:var(--text-soft);white-space:nowrap;'
+                f'overflow:hidden;text-overflow:ellipsis;">{name}</div>'
+                '<div style="position:relative;height:14px;background:var(--bg-track);'
+                'border-radius:2px;overflow:visible;">'
+                f'<div style="position:absolute;left:0;top:0;height:100%;width:{bar_w:.1f}%;'
+                f'background:{bar_col};border-radius:2px;"></div>'
+                f'<span class="kpi-number" style="position:absolute;left:{bar_w:.1f}%;'
+                f'top:50%;transform:translateY(-50%);margin-left:6px;font-size:12px;'
+                f'font-weight:700;color:var(--text-primary);'
+                f'font-variant-numeric:tabular-nums;">{v:.0f}%</span>'
+                '</div>'
+                '</div>'
+            )
+
+        # Toggle header: two HTML tabs that swap ?topview=exp / =util.
+        _tqs = _theme_qs()
+        _exp_active  = _topview == "exp"
+        _util_active = _topview == "util"
+        _tab_active_css = ("font-weight:800;color:var(--text-primary);"
+                          "border-bottom:2px solid var(--accent);padding-bottom:2px;")
+        _tab_inactive_css = ("font-weight:600;color:var(--text-subtle);"
+                            "border-bottom:2px solid transparent;padding-bottom:2px;")
+        _toggle_html = (
+            '<div style="display:flex;align-items:center;gap:14px;margin-bottom:8px;font-size:11px;'
+            'letter-spacing:0.06em;text-transform:uppercase;">'
+            '<span style="color:var(--text-muted);">Top strategies by</span>'
+            f'<a href="?topview=exp{_tqs}" target="_self" '
+            f'style="text-decoration:none;{_tab_active_css if _exp_active else _tab_inactive_css}">'
+            'Exposure</a>'
+            f'<a href="?topview=util{_tqs}" target="_self" '
+            f'style="text-decoration:none;{_tab_active_css if _util_active else _tab_inactive_css}">'
+            'Utilisation</a>'
+            '</div>'
+        )
+        top_contributors_html = (
+            '<div style="margin-bottom:6px;">'
+            f'{_toggle_html}'
+            f'{_rows_html}'
+            '<div style="font-size:10.5px;color:var(--text-subtle);margin-top:4px;letter-spacing:0.02em;">'
+            f'{_sub_label}'
+            '</div>'
+            '</div>'
+        )
 
     # ── Active breaches + initiative status (collapsed) ────────────────────
     # Pass 25.6: surface the spreadsheet narrative — total breaches, how many
@@ -2661,6 +2947,12 @@ def _ai_observations_html(strat_agg, sub_strat_agg, portfolios_df, history_df, s
             f'<div class="metric-label" style="margin-bottom:2px;color:var(--breach-text);">Active breaches</div>'
             f'<div style="font-size:14px;color:var(--text-soft);line-height:1.5;">{body_b}</div></div>'
         )
+
+    # Pass 30.6: Top contributors bar chart appended LAST so it sits at the
+    # bottom of the always-visible block (was previously between Portfolio
+    # overview and Active breaches).
+    if top_contributors_html:
+        always_sections.append(top_contributors_html)
 
     # ── Biggest leverage opportunity (collapsed) ─────────────────────────────
     ar = instruments_df[instruments_df["tier"].isin(["Amber","Red"])]
@@ -2858,14 +3150,39 @@ def _render_preview_dialog(row, sub_history_df):
         )
 
         # ── Driver of gap ──────────────────────────────────────────────
+        # Pass 30.10: (a) de-dupe chips that are just a case-insensitive
+        # copy of the driver text (the "fund route" pill that duplicated
+        # the "Fund route" sentence above it), and (b) capitalize the
+        # first letter on render so pills are sentence-case while leaving
+        # inline acronyms untouched ("LO funds", "CI: UPC", "DICI: T&Cs").
         driver_text = str(row.get("breach_driver", "") or "").strip()
         chips_list  = row.get("driver_chips", []) or []
-        if driver_text or chips_list:
+
+        def _cap_first(s):
+            s = str(s).strip()
+            return (s[:1].upper() + s[1:]) if s else s
+
+        _driver_norm = driver_text.lower()
+        _seen = set()
+        _visible_chips = []
+        for c in chips_list:
+            c_str = str(c).strip()
+            c_low = c_str.lower()
+            if not c_str:
+                continue
+            if c_low == _driver_norm:
+                continue                  # exact duplicate of driver text
+            if c_low in _seen:
+                continue
+            _seen.add(c_low)
+            _visible_chips.append(c_str)
+
+        if driver_text or _visible_chips:
             chips_html = "".join(
                 f'<span style="display:inline-block;border:1px solid {_tag_color(c)};color:{_tag_color(c)};'
                 f'background:transparent;padding:3px 10px;border-radius:10px;font-size:12px;'
-                f'font-weight:600;margin:0 6px 6px 0;white-space:nowrap;">{c}</span>'
-                for c in chips_list[:4]
+                f'font-weight:600;margin:0 6px 6px 0;white-space:nowrap;">{_cap_first(c)}</span>'
+                for c in _visible_chips[:4]
             )
             st.markdown(
                 f'<div style="margin-top:10px;padding:10px 14px;background:var(--bg-track);border-radius:6px;">'
@@ -3168,17 +3485,45 @@ def page_portfolio_overview(strat_agg, sub_strat_agg, portfolios_df, history_df,
     }
     </style>
     """, unsafe_allow_html=True)
-    _expo_col, _ai_col = st.columns([0.65, 1.35], gap="small", vertical_alignment="top")
+    # Pass 30.4: rebalance the column ratio so the Gemini-style donuts get
+    # real estate; the A.I. Observations bar chart is compact enough to fit
+    # in the narrower right column. Previously 0.65 / 1.35 (donuts cramped).
+    _expo_col, _ai_col = st.columns([1.0, 1.0], gap="small", vertical_alignment="top")
     with _expo_col:
-        stacked_html = '<div class="expo-stack" style="display:flex;flex-direction:column;gap:12px;height:100%;margin-bottom:24px;">'
-        for (lbl, util, val, thr, color, breach, tier_key) in card_specs:
-            stacked_html += _total_exposure_card_html(
-                lbl, util, val, thr, color, breach,
-                href=f"?focus={tier_key}&exp={exp_q}{_theme_qs()}#tp-details",
-                tooltip=TIER_TOOLTIPS.get(tier_key),
-            )
-        stacked_html += '</div>'
-        st.markdown(stacked_html, unsafe_allow_html=True)
+        # Pass 30: when USE_DONUTS is on, render side-by-side semi-donut
+        # gauges instead of the stacked rectangular cards. The two donuts sit
+        # in a flex row so they share the full column width. Flag is at the
+        # top of the file — flip to False to revert to the existing layout.
+        if USE_DONUTS:
+            # Pass 30.6: each donut wrapper is itself a flex column so the
+            # donut card inside can use flex:1 to stretch to the row height
+            # (which the existing .expo-stack CSS pins to the AI Obs panel
+            # height). This kills the dead space between the donut bottom
+            # edge and the AI Obs panel bottom edge.
+            donut_html = ('<div class="expo-stack" style="display:flex;flex-direction:row;'
+                          'gap:10px;height:100%;margin-bottom:24px;align-items:stretch;">')
+            for (lbl, util, val, thr, color, breach, tier_key) in card_specs:
+                donut_html += (
+                    '<div style="flex:1 1 0;min-width:0;display:flex;flex-direction:column;">'
+                    + _total_exposure_donut_html(
+                        lbl, util, val, thr, color, breach,
+                        href=f"?focus={tier_key}&exp={exp_q}{_theme_qs()}#tp-details",
+                        tooltip=TIER_TOOLTIPS.get(tier_key),
+                      )
+                    + '</div>'
+                )
+            donut_html += '</div>'
+            st.markdown(donut_html, unsafe_allow_html=True)
+        else:
+            stacked_html = '<div class="expo-stack" style="display:flex;flex-direction:column;gap:12px;height:100%;margin-bottom:24px;">'
+            for (lbl, util, val, thr, color, breach, tier_key) in card_specs:
+                stacked_html += _total_exposure_card_html(
+                    lbl, util, val, thr, color, breach,
+                    href=f"?focus={tier_key}&exp={exp_q}{_theme_qs()}#tp-details",
+                    tooltip=TIER_TOOLTIPS.get(tier_key),
+                )
+            stacked_html += '</div>'
+            st.markdown(stacked_html, unsafe_allow_html=True)
 
     with _ai_col:
         st.markdown(_ai_observations_html(strat_agg, sub_strat_agg, portfolios_df,
@@ -3216,34 +3561,65 @@ def page_portfolio_overview(strat_agg, sub_strat_agg, portfolios_df, history_df,
             st.query_params["exp"] = "1" if st.session_state["widgets_expanded"] else "0"
             st.rerun()
     expanded = st.session_state["widgets_expanded"]
-    # Group the 16 Strategy widgets into two flat sections: Public vs Private.
-    # PRODUCT_GROUPING maps each Strategy Group -> Public/Private; the strategy_id ->
-    # Strategy Group link is retained in the data for Strategy Detail drill-through.
-    def _product_section(title, product):
-        group_ids = [g["strategy_id"] for _, g in strat_agg.iterrows()
-                     if PRODUCT_GROUPING.get(str(g["name"])) == product]
-        children = df[df["strategy_id"].isin(group_ids)]
-        if children.empty:
-            return ""
-        any_child_breach = bool(children["any_breach"].any())
-        accent = "var(--color-breach)" if any_child_breach else "var(--text-subtle)"
-        n = len(children)
-        head = (
-            '<div style="display:flex;align-items:center;gap:10px;margin:16px 0 8px;">'
-            '<div style="font-size:20px;color:var(--text-soft);font-weight:600;letter-spacing:0.06em;text-transform:uppercase;">'
-            + title +
-            '</div>'
-            '<div style="flex:1;height:1px;background:' + accent + ';opacity:0.25;"></div>'
-            '<div style="font-size:11px;color:var(--text-subtle);">'
-            + str(n) + ' ' + ("strategy" if n == 1 else "strategies") + '</div></div>'
-        )
-        grid = '<div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(240px, 1fr));gap:10px;margin-bottom:4px;">'
-        for _, row in children.iterrows():
-            grid += _cockpit_widget_html(row, expanded=expanded)
-        grid += '</div>'
-        return head + grid
+    # Pass 30 / 30.1: render the 16 Strategy widgets in asset-class rows.
+    # Each row in ASSET_CLASS_ROWS is a CSS COCKPIT_COLS_PER_ROW-column
+    # grid; each asset-class section's header spans grid columns equal to
+    # its strategy count, then its widgets occupy single columns. This
+    # keeps widget WIDTH identical across all rows even when one row holds
+    # a single section (Alternatives = 7) and another holds two sections
+    # sharing the row (FI&C 4 + Equity 2 = 6, leaving col 7 empty).
+    # Pre-bucket the dataframe so we only filter once per asset class.
+    children_by_class = {
+        ac: df[df["sub_strategy_name"].map(lambda n: ASSET_CLASS_MAP.get(str(n)) == ac)]
+        for ac in ASSET_CLASS_ORDER
+    }
 
-    cockpit_html = _product_section("Public Strategies", "Public") + _product_section("Private Strategies", "Private")
+    def _section_header_html(asset_class, children, col_start, n_span):
+        # Pass 30.2: header is just the asset-class title + a horizontal
+        # divider line. The "N strategies · M breaching" chips were felt as
+        # noise — counts can be inferred from the widgets themselves.
+        return (
+            f'<div style="grid-column:{col_start} / span {n_span};'
+            f'display:flex;align-items:center;gap:10px;margin:6px 0 4px;">'
+            f'<div style="font-size:18px;color:var(--text-primary);font-weight:600;letter-spacing:0.02em;">'
+            f'{asset_class}</div>'
+            f'<div style="flex:1;height:1px;background:var(--text-subtle);opacity:0.25;"></div>'
+            f'</div>'
+        )
+
+    rows_html = []
+    for row_classes in ASSET_CLASS_ROWS:
+        # Drop empty sections from this row.
+        active = [(ac, children_by_class[ac]) for ac in row_classes
+                  if not children_by_class[ac].empty]
+        if not active:
+            continue
+        headers_html = ""
+        widgets_html = ""
+        col_start = 1
+        for ac, children in active:
+            n = len(children)
+            headers_html += _section_header_html(ac, children, col_start, n)
+            for i, (_, child_row) in enumerate(children.iterrows()):
+                col = col_start + i
+                widgets_html += (
+                    # Pass 30.15: wrapper is a flex column so the widget
+                    # inside can use flex:1 / height:100% to stretch to
+                    # the grid cell's full height. The grid's default
+                    # align-items:stretch already stretches this wrapper.
+                    f'<div style="grid-column:{col};display:flex;flex-direction:column;">'
+                    f'{_cockpit_widget_html(child_row, expanded=expanded)}'
+                    f'</div>'
+                )
+            col_start += n
+        rows_html.append(
+            f'<div style="display:grid;'
+            f'grid-template-columns:repeat({COCKPIT_COLS_PER_ROW}, minmax(0, 1fr));'
+            f'column-gap:10px;row-gap:4px;margin-bottom:16px;">'
+            f'{headers_html}{widgets_html}'
+            f'</div>'
+        )
+    cockpit_html = "".join(rows_html)
     # Negative top margin tightens the gap between the toggle button and the widgets.
     st.markdown('<div style="margin-top:-14px;">' + cockpit_html + '</div>', unsafe_allow_html=True)
 
@@ -4592,175 +4968,85 @@ def page_data_quality(portfolios_df, instruments_df, audit_df):
     ins = instruments_df[instruments_df["strategy_name"] == grp]
     aud0 = audit_df[audit_df["strategy_name"] == grp]
 
-    tab1, tab2, tab3 = st.tabs(["Missing Data", "Data Freshness", "Audit Trail"])
+    # Pass 30.16: Data Freshness and Audit Trail tabs removed —
+    # Data Quality page now shows only the Missing Data view.
 
-    # ── Tab 1: Missing Data ───────────────────────────────────────────────────
-    with tab1:
-        col_l, col_r = st.columns(2)
-        miss_records = [
-            {"field": f, "strategy": r["sub_strategy_name"], "tier": r["tier"]}
-            for _, r in ins.iterrows() for f in r["missing_fields_list"]
-        ]
-        miss_df = pd.DataFrame(miss_records) if miss_records else pd.DataFrame(
-            columns=["field", "strategy", "tier"])
+    col_l, col_r = st.columns(2)
+    miss_records = [
+        {"field": f, "strategy": r["sub_strategy_name"], "tier": r["tier"]}
+        for _, r in ins.iterrows() for f in r["missing_fields_list"]
+    ]
+    miss_df = pd.DataFrame(miss_records) if miss_records else pd.DataFrame(
+        columns=["field", "strategy", "tier"])
 
-        with col_l:
-            st.markdown('<p class="section-title">Missing Fields by Type & Tier</p>', unsafe_allow_html=True)
-            if not miss_df.empty:
-                cnt = miss_df.groupby(["field", "tier"]).size().reset_index(name="count")
-                fig = px.bar(cnt, x="field", y="count", color="tier",
-                              color_discrete_map=TIER_COLORS,
-                              labels={"field": "Missing Field", "count": "Occurrences"})
-                fig.update_layout(**DARK_LAYOUT, height=320,
-                                   margin=dict(l=10, r=10, t=10, b=60), xaxis_tickangle=-30,
-                                   legend=dict(orientation="h", yanchor="bottom", y=1.02, **DARK_LEGEND))
-                st.plotly_chart(fig, use_container_width=True)
-            else:
-                st.info(f"No missing fields recorded in {grp}.")
-
-        with col_r:
-            st.markdown('<p class="section-title">Missing Fields by Strategy</p>', unsafe_allow_html=True)
-            sm = (ins.groupby("sub_strategy_name")["missing_fields_list"]
-                  .apply(lambda x: sum(len(l) for l in x))
-                  .reset_index(name="missing_count").sort_values("missing_count"))
-            if not sm.empty and sm["missing_count"].sum() > 0:
-                _t = _theme()
-                fig_sm = px.bar(sm, x="missing_count", y="sub_strategy_name", orientation="h",
-                                 color="missing_count",
-                                 color_continuous_scale=[_t["tier-green-bright"], _t["tier-amber-bright"], _t["tier-red-bright"]],
-                                 labels={"missing_count": "Count", "sub_strategy_name": ""})
-                fig_sm.update_layout(**DARK_LAYOUT, height=320, margin=dict(l=10, r=10, t=10, b=10),
-                                      showlegend=False, coloraxis_showscale=False)
-                st.plotly_chart(fig_sm, use_container_width=True)
-            else:
-                st.info("No missing fields to break down.")
-
-        # ── Missing fields by Investment Bucket (DI Large/Small, CI Large/Small, FI) ──
-        st.markdown('<p class="section-title">Missing Fields by Investment Bucket</p>', unsafe_allow_html=True)
-        st.caption("DI = Direct Investment (incl. Mandates); CI = Co-investment; FI = Fund Investment. Large = private exposure > USD 200M; Small = private \u2264 USD 200M.")
-        _bucket_order = ["DI Large", "DI Small", "CI Large", "CI Small", "FI", "DI", "CI", "Other"]
-        ib_rows = []
-        for _, r in ins.iterrows():
-            for f in r["missing_fields_list"]:
-                ib_rows.append({"investment_bucket": r["investment_bucket"], "tier": r["tier"], "field": f})
-        ib_df = pd.DataFrame(ib_rows) if ib_rows else pd.DataFrame(columns=["investment_bucket","tier","field"])
-        if not ib_df.empty:
-            ib_cnt = ib_df.groupby(["investment_bucket","tier"]).size().reset_index(name="count")
-            # Order by canonical bucket sequence, then drop empties
-            present = [b for b in _bucket_order if b in ib_cnt["investment_bucket"].unique()]
-            ib_cnt["investment_bucket"] = pd.Categorical(ib_cnt["investment_bucket"], categories=present, ordered=True)
-            ib_cnt = ib_cnt.sort_values("investment_bucket")
-            fig_ib = px.bar(ib_cnt, x="investment_bucket", y="count", color="tier",
-                            color_discrete_map=TIER_COLORS,
-                            labels={"investment_bucket": "Investment Bucket", "count": "Missing-field occurrences"})
-            fig_ib.update_layout(**DARK_LAYOUT, height=300,
-                                 margin=dict(l=10, r=10, t=10, b=40),
-                                 legend=dict(orientation="h", yanchor="bottom", y=1.02, **DARK_LEGEND))
-            st.plotly_chart(fig_ib, use_container_width=True)
+    with col_l:
+        st.markdown('<p class="section-title">Missing Fields by Type & Tier</p>', unsafe_allow_html=True)
+        if not miss_df.empty:
+            cnt = miss_df.groupby(["field", "tier"]).size().reset_index(name="count")
+            fig = px.bar(cnt, x="field", y="count", color="tier",
+                          color_discrete_map=TIER_COLORS,
+                          labels={"field": "Missing Field", "count": "Occurrences"})
+            fig.update_layout(**DARK_LAYOUT, height=320,
+                               margin=dict(l=10, r=10, t=10, b=60), xaxis_tickangle=-30,
+                               legend=dict(orientation="h", yanchor="bottom", y=1.02, **DARK_LEGEND))
+            st.plotly_chart(fig, use_container_width=True)
         else:
-            st.info(f"No missing fields recorded for {grp} \u2014 nothing to bucket.")
+            st.info(f"No missing fields recorded in {grp}.")
 
-        st.markdown('<p class="section-title">Data Completeness Trend</p>', unsafe_allow_html=True)
-        random.seed(7)
-        dates = pd.date_range(end=datetime.now(), periods=12, freq="MS")
-        comp  = [62 + i*2.8 + random.gauss(0, 1.2) for i in range(12)]
-        comp_df = pd.DataFrame({"date": dates, "completeness": comp})
-        fig_c = px.line(comp_df, x="date", y="completeness", markers=True,
-                         labels={"completeness": "Completeness (%)", "date": ""},
-                         color_discrete_sequence=[_theme()["tier-green-bright"]])
-        fig_c.add_hline(y=90, line_dash="dot", line_color=_theme()["tier-amber-bright"],
-                         annotation_text="Target 90%", annotation_position="bottom right")
-        fig_c.update_layout(**DARK_LAYOUT, height=230, margin=dict(l=20, r=20, t=10, b=20))
-        st.plotly_chart(fig_c, use_container_width=True)
-
-    # ── Tab 2: Data Freshness ─────────────────────────────────────────────────
-    with tab2:
-        st.markdown('<p class="section-title">Freshness by Strategy</p>', unsafe_allow_html=True)
-        fresh_s = pf.groupby("sub_strategy_name").agg(
-            latest=("last_updated", "max"), n_ports=("portfolio_id", "count"),
-            avg_miss=("missing_count", "mean"),
-        ).reset_index()
-        fresh_s["days_since"] = (datetime.now() - fresh_s["latest"]).dt.days
-        fresh_s["status"] = fresh_s["days_since"].apply(
-            lambda d: "🟢 Fresh" if d <= 30 else "🟠 Stale" if d <= 60 else "🔴 Overdue")
-        fd = fresh_s[["sub_strategy_name", "n_ports", "latest", "days_since", "avg_miss", "status"]].copy()
-        fd.columns = ["Strategy", "# Portfolios", "Last Refresh", "Days Since", "Avg Missing", "Status"]
-        fd["Last Refresh"] = fd["Last Refresh"].dt.strftime("%Y-%m-%d")
-        fd["Avg Missing"]  = fd["Avg Missing"].round(1)
-        st.dataframe(fd, use_container_width=True)
-
-        st.markdown("---")
-        st.markdown('<p class="section-title">Freshness by Investment Bucket</p>', unsafe_allow_html=True)
-        st.caption("DI = Direct Investment (incl. Mandates); CI = Co-investment; FI = Fund Investment. Large = private exposure > USD 200M; Small = private \u2264 USD 200M.")
-        if "investment_bucket" in pf.columns and len(pf):
-            fresh_ib = pf.groupby("investment_bucket").agg(
-                latest=("last_updated", "max"),
-                n_ports=("portfolio_id", "count"),
-                avg_miss=("missing_count", "mean"),
-                total_mv=("mv", "sum"),
-            ).reset_index()
-            fresh_ib["days_since"] = (datetime.now() - fresh_ib["latest"]).dt.days
-            fresh_ib["status"] = fresh_ib["days_since"].apply(
-                lambda d: "\U0001F7E2 Fresh" if d <= 30 else "\U0001F7E0 Stale" if d <= 60 else "\U0001F534 Overdue")
-            _order = ["DI Large", "DI Small", "CI Large", "CI Small", "FI", "DI", "CI", "Other"]
-            present = [b for b in _order if b in fresh_ib["investment_bucket"].unique()]
-            fresh_ib["investment_bucket"] = pd.Categorical(fresh_ib["investment_bucket"], categories=present, ordered=True)
-            fresh_ib = fresh_ib.sort_values("investment_bucket")
-            fib = fresh_ib[["investment_bucket", "n_ports", "total_mv", "latest", "days_since", "avg_miss", "status"]].copy()
-            fib.columns = ["Bucket", "# Portfolios", "Total MV (\u00A3M)", "Last Refresh", "Days Since", "Avg Missing", "Status"]
-            fib["Last Refresh"] = pd.to_datetime(fib["Last Refresh"]).dt.strftime("%Y-%m-%d")
-            fib["Avg Missing"]  = fib["Avg Missing"].round(1)
-            fib["Total MV (\u00A3M)"] = fib["Total MV (\u00A3M)"].round(0)
-            st.dataframe(fib, use_container_width=True)
+    with col_r:
+        st.markdown('<p class="section-title">Missing Fields by Strategy</p>', unsafe_allow_html=True)
+        sm = (ins.groupby("sub_strategy_name")["missing_fields_list"]
+              .apply(lambda x: sum(len(l) for l in x))
+              .reset_index(name="missing_count").sort_values("missing_count"))
+        if not sm.empty and sm["missing_count"].sum() > 0:
+            _t = _theme()
+            fig_sm = px.bar(sm, x="missing_count", y="sub_strategy_name", orientation="h",
+                             color="missing_count",
+                             color_continuous_scale=[_t["tier-green-bright"], _t["tier-amber-bright"], _t["tier-red-bright"]],
+                             labels={"missing_count": "Count", "sub_strategy_name": ""})
+            fig_sm.update_layout(**DARK_LAYOUT, height=320, margin=dict(l=10, r=10, t=10, b=10),
+                                  showlegend=False, coloraxis_showscale=False)
+            st.plotly_chart(fig_sm, use_container_width=True)
         else:
-            st.info("Investment bucket data not available.")
+            st.info("No missing fields to break down.")
 
-        st.markdown("---")
-        st.markdown('<p class="section-title">Freshness by Portfolio</p>', unsafe_allow_html=True)
-        fresh_p = pf[["sub_strategy_name", "portfolio_name", "tier",
-                      "missing_count", "last_updated"]].copy()
-        fresh_p["days_since"] = (datetime.now() - fresh_p["last_updated"]).dt.days
-        fresh_p["status"] = fresh_p["days_since"].apply(
-            lambda d: "🟢 Fresh" if d <= 30 else "🟠 Stale" if d <= 60 else "🔴 Overdue")
-        fresh_p["last_updated"] = fresh_p["last_updated"].dt.strftime("%Y-%m-%d")
-        fresh_p.columns = ["Strategy", "Portfolio", "Tier", "Missing Fields", "Last Updated", "Days Since", "Status"]
-        sub_opts = ["All"] + list(dict.fromkeys(pf["sub_strategy_name"].tolist()))
-        strat_filter = st.selectbox("Filter by Strategy", sub_opts, key="dq_sf")
-        fp_disp = fresh_p if strat_filter == "All" else fresh_p[fresh_p["Strategy"] == strat_filter]
-        st.dataframe(apply_tier_style(fp_disp.style, "Tier"), use_container_width=True, height=350)
+    # ── Missing fields by Investment Bucket (DI Large/Small, CI Large/Small, FI) ──
+    st.markdown('<p class="section-title">Missing Fields by Investment Bucket</p>', unsafe_allow_html=True)
+    st.caption("DI = Direct Investment (incl. Mandates); CI = Co-investment; FI = Fund Investment. Large = private exposure > USD 200M; Small = private \u2264 USD 200M.")
+    _bucket_order = ["DI Large", "DI Small", "CI Large", "CI Small", "FI", "DI", "CI", "Other"]
+    ib_rows = []
+    for _, r in ins.iterrows():
+        for f in r["missing_fields_list"]:
+            ib_rows.append({"investment_bucket": r["investment_bucket"], "tier": r["tier"], "field": f})
+    ib_df = pd.DataFrame(ib_rows) if ib_rows else pd.DataFrame(columns=["investment_bucket","tier","field"])
+    if not ib_df.empty:
+        ib_cnt = ib_df.groupby(["investment_bucket","tier"]).size().reset_index(name="count")
+        # Order by canonical bucket sequence, then drop empties
+        present = [b for b in _bucket_order if b in ib_cnt["investment_bucket"].unique()]
+        ib_cnt["investment_bucket"] = pd.Categorical(ib_cnt["investment_bucket"], categories=present, ordered=True)
+        ib_cnt = ib_cnt.sort_values("investment_bucket")
+        fig_ib = px.bar(ib_cnt, x="investment_bucket", y="count", color="tier",
+                        color_discrete_map=TIER_COLORS,
+                        labels={"investment_bucket": "Investment Bucket", "count": "Missing-field occurrences"})
+        fig_ib.update_layout(**DARK_LAYOUT, height=300,
+                             margin=dict(l=10, r=10, t=10, b=40),
+                             legend=dict(orientation="h", yanchor="bottom", y=1.02, **DARK_LEGEND))
+        st.plotly_chart(fig_ib, use_container_width=True)
+    else:
+        st.info(f"No missing fields recorded for {grp} \u2014 nothing to bucket.")
 
-    # ── Tab 3: Audit Trail ────────────────────────────────────────────────────
-    with tab3:
-        st.markdown('<p class="section-title">Tier Classification Change Log</p>', unsafe_allow_html=True)
-        st.caption("Simulated history of transparency tier reclassifications")
-
-        col_f1, col_f2 = st.columns(2)
-        with col_f1:
-            sub_opts2 = ["All"] + list(dict.fromkeys(aud0["sub_strategy_name"].tolist()))
-            at_strat = st.selectbox("Strategy", sub_opts2, key="at_s")
-        with col_f2:
-            at_tier = st.multiselect("New Tier", ["Green", "Amber", "Red"], key="at_t")
-
-        aud = aud0.copy()
-        if at_strat != "All": aud = aud[aud["sub_strategy_name"] == at_strat]
-        if at_tier:           aud = aud[aud["new_tier"].isin(at_tier)]
-        aud_disp = aud.sort_values("changed_at", ascending=False)[
-            ["changed_at", "sub_strategy_name", "portfolio_name", "previous_tier", "new_tier", "changed_by", "reason"]
-        ].copy()
-        aud_disp["changed_at"] = aud_disp["changed_at"].dt.strftime("%Y-%m-%d")
-        aud_disp.columns = ["Date", "Strategy", "Portfolio", "Previous Tier", "New Tier", "Changed By", "Reason"]
-        if aud_disp.empty:
-            st.info(f"No tier changes recorded for {grp}.")
-        else:
-            st.dataframe(apply_tier_style(aud_disp.style, "New Tier"),
-                         use_container_width=True, height=420)
-            buf = BytesIO()
-            aud_disp.to_excel(buf, index=False, engine="openpyxl")
-            buf.seek(0)
-            st.download_button("📥 Export Audit Log", buf,
-                                file_name=f"audit_trail_{grp.replace(' ', '_')}.xlsx",
-                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
+    st.markdown('<p class="section-title">Data Completeness Trend</p>', unsafe_allow_html=True)
+    random.seed(7)
+    dates = pd.date_range(end=datetime.now(), periods=12, freq="MS")
+    comp  = [62 + i*2.8 + random.gauss(0, 1.2) for i in range(12)]
+    comp_df = pd.DataFrame({"date": dates, "completeness": comp})
+    fig_c = px.line(comp_df, x="date", y="completeness", markers=True,
+                     labels={"completeness": "Completeness (%)", "date": ""},
+                     color_discrete_sequence=[_theme()["tier-green-bright"]])
+    fig_c.add_hline(y=90, line_dash="dot", line_color=_theme()["tier-amber-bright"],
+                     annotation_text="Target 90%", annotation_position="bottom right")
+    fig_c.update_layout(**DARK_LAYOUT, height=230, margin=dict(l=20, r=20, t=10, b=20))
+    st.plotly_chart(fig_c, use_container_width=True)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # PAGE 5 — What-If Simulator
@@ -5325,8 +5611,10 @@ def main():
     st.session_state["_meta_n_portfolios"] = len(portfolios_df)
 
 
+    # Pass 30.16: flag the What-If Simulator as Work-In-Progress so
+    # stakeholders know the stress-loss math is still being tuned.
     PAGES = ["Total Portfolio", "Strategy Detail", "Action Tracker",
-             "Data Quality", "What-If Simulator", "Glossary"]
+             "Data Quality", "What-If Simulator (WIP)", "Glossary"]
 
     if "active_page" not in st.session_state:
         st.session_state["active_page"] = "Total Portfolio"
@@ -5371,7 +5659,7 @@ def main():
     elif active == "Strategy Detail":   page_strategy_detail(strat_agg, sub_strat_agg, portfolios_df, instruments_df, history_df, sub_history_df)
     elif active == "Action Tracker":    page_action_tracker(action_items_df, sub_strat_agg, sub_history_df)
     elif active == "Data Quality":      page_data_quality(portfolios_df, instruments_df, audit_df)
-    elif active == "What-If Simulator": page_whatif(sub_strat_agg, instruments_df, portfolios_df)
+    elif active == "What-If Simulator (WIP)": page_whatif(sub_strat_agg, instruments_df, portfolios_df)
     elif active == "Glossary":          page_glossary()
 
 if __name__ == "__main__":
